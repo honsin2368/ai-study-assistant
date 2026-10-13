@@ -48,7 +48,7 @@ def main():
 
             tasks.append({"title": title, "done": False})
             save_tasks(tasks)
-            print("任务已添加。")
+            print(f"任务已添加：{title}")
 
         elif choice == "2":
             show_tasks(tasks)
