@@ -1,4 +1,4 @@
-﻿# AI Study Assistant
+# AI Study Assistant
 
 使用 Python 开发的命令行学习任务管理工具。
 当前版本已完成基础任务管理，尚未接入 AI。
