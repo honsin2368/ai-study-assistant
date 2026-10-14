@@ -25,6 +25,14 @@ def show_tasks(tasks):
         status = "已完成" if task["done"] else "待完成"
         print(f'{number}. [{status}] {task["title"]}')
 
+def search_tasks(tasks, keyword):
+    found = False
+    for task in tasks:
+        if keyword in task["title"]:
+            print(f'找到 {task["title"]}')
+            found = True
+    if not found:
+        print("未找到匹配的任务。")
 
 def main():
     tasks = load_tasks()
@@ -36,6 +44,7 @@ def main():
         print("3. 标记完成")
         print("4. 删除任务")
         print("5. 学习统计")
+        print("6. 搜索任务")
         print("0. 退出")
 
         choice = input("请选择：").strip()
@@ -99,6 +108,18 @@ def main():
             print(f"已完成：{completed}")
             print(f"待完成：{pending}")
             print(f"完成率：{rate:.0f}%")
+        # elif choice == "6":
+        #      keyword = input("请输入搜索关键词：").strip()
+        #      search_tasks(tasks, keyword)
+
+        elif choice == "6":
+            while True:
+                keyword = input("请输入搜索关键词（回车返回主菜单）：").strip()
+
+                if not keyword:
+                    break
+
+                search_tasks(tasks, keyword)
 
         elif choice == "0":
             print("学习记录已保存，再见！")
