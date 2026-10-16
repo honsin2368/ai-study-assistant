@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Study Assistant</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      margin: 0;
+      padding: 40px 20px;
+      color: #243044;
+    }
+    main {
+      max-width: 680px;
+      margin: auto;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 15px;
+      font: inherit;
+      border: 1px solid #d8dfeb;
+      border-radius: 10px;
+      resize: vertical;
+    }
+    button {
+      margin-top: 12px;
+      padding: 12px 24px;
+      background: #356bc0;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #answer {
+      background: white;
+      padding: 22px;
+      margin-top: 25px;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      min-height: 80px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>AI Study Assistant</h1>
+    <p>输入你的学习问题，获得学习辅助回答。</p>
+
+    <textarea id="question" rows="4"
+      placeholder="例如：Python 的 for 循环是什么？"></textarea>
+
+    <button onclick="askQuestion()">发送问题</button>
+
+    <div id="answer">回答会显示在这里。</div>
+  </main>
+
+  <script>
+    async function askQuestion() {
+      const question = document.getElementById("question").value;
+      const answer = document.getElementById("answer");
+
+      answer.textContent = "正在处理问题……";
+
+      try {
+        const response = await fetch("/api/ask", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({question: question})
+        });
+
+        if (!response.ok) {
+          throw new Error("请求失败：" + response.status);
+        }
+
+        const data = await response.json();
+        answer.textContent = data.answer;
+      } catch (error) {
+        answer.textContent = "请求失败：" + error.message;
+      }
+    }
+  </script>
+</body>
+</html>
