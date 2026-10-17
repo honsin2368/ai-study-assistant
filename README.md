@@ -1,202 +1,125 @@
-# ASTUDYA · AI Study Assistant（V0.3）
+# ASTUDYA
 
-> 一款基于 **Python、FastAPI 与 Gemini API** 的个人 AI 学习助手。支持**快速解答、交互式教学、可编辑的快捷提问和图文／文档辅助学习**，并提供个性化玻璃拟态界面。
+基于 Python、FastAPI 和 Google Gemini API 构建的 AI 学习助手，提供快速问答、交互式教学和学习资料辅助分析。项目包含可自定义的 Web 工作台，并已部署在线演示版本。
 
-**[在线体验](https://astudya-honsin.onrender.com/)** · **[源代码](https://github.com/honsin2368/ai-study-assistant)**
+[在线体验](https://astudya-honsin.onrender.com/) · [项目仓库](https://github.com/honsin2368/ai-study-assistant)
 
-> **在线体验提示：** 网站使用 Render 免费 Web Service，长时间无人访问后可能休眠，首次打开需等待服务唤醒。为控制模型调用额度，公开演示站点采用全站共享的基础限流。
-
-## 项目概述
-
-ASTUDYA 是一个以“提出问题—理解知识—继续练习”为核心的学习工具。用户可以直接获取知识解答，也可以选择循序渐进的教学方式，让 AI 根据前面的问答继续讲解；也可以上传课程截图、PDF 或 Office 文档，结合自己的文字问题分析学习资料。
-
-项目从 Python 命令行任务管理器起步，逐步扩展为可公开访问的 Web 应用。**命令行任务管理器与 Web 学习助手目前是两个独立模块，尚未整合。**
+> 在线演示使用 Render 免费实例，长时间无人访问后可能休眠，首次打开需要等待。为控制模型调用额度，演示站点设置了全站共享的请求频率限制。
 
 ## 核心功能
 
-| 功能 | 实现情况 |
+| 模块 | 功能说明 |
 | --- | --- |
-| **快速解答** | 用户输入问题，后端调用 Gemini 返回解释、示例或代码 |
-| **交互式教学** | 使用独立的导师提示词，结合历史问答逐步讲解并提出问题 |
-| **上下文连续对话** | 教学模式由前端提交最近最多 12 条消息，后端按角色构造 Gemini 会话内容 |
-| **自定义快捷提问** | 用户可新增、编辑、删除常用提问，最多保存 8 条；保存在当前浏览器中 |
-| **多格式文件提问** | 结合提问上传图片、PDF、TXT／MD／CSV／JSON／PY、Word（DOCX）、PPT（PPTX）、Excel（XLSX） |
-| **附件内容处理** | 图片与 PDF 以附件内容交给 Gemini；Office 文件由后端提取可读取的文本／表格数据 |
-| **富文本回答展示** | 前端自行渲染常见 Markdown 内容，包括标题、列表、代码块等 |
-| **一屏式学习工作台** | 桌面端并列展示提问区和回答区；长回答可在内容区滚动 |
-| **界面个性化** | 日间／雾灰／夜间色调、玻璃卡片和控件透明度、字体、配色及阅读行距 |
-| **背景图设置** | 上传自定义图片，调整缩放、横纵向取景与左右旋转 90°，支持恢复居中、模糊效果及原图／1080p／4K 尺寸适配 |
-| **设置保留** | 在当前浏览器使用本地存储保存界面偏好及背景图片 |
-| **公开演示保护** | 后端限制输入长度、附件数量和大小，设置基础全站限流，并通过环境变量读取 API Key |
+| 快速解答 | 输入学习问题，调用 Gemini 返回解释、示例或代码 |
+| 交互式教学 | 按步骤讲解和追问，参考最近最多 12 条对话消息继续教学 |
+| 文件辅助学习 | 支持图片、PDF、TXT、Markdown、CSV、JSON、Python、DOCX、PPTX、XLSX 等学习资料 |
+| 快捷提问 | 添加、编辑、删除常用问题，最多保留 8 条 |
+| 个性化界面 | 日间、雾灰、夜间主题；配色、字体、阅读设置和玻璃卡片效果 |
+| 背景构图 | 自定义背景图片，支持缩放、上下左右定位、90° 旋转和恢复居中 |
+| 本地保存 | 快捷提问与界面偏好使用浏览器本地存储；背景图片使用 IndexedDB |
 
-> **画质说明：** 1080p 和 4K 是背景图片的目标输出尺寸选项，不是 AI 超分辨率修复；背景缩放只是显示比例调整，低分辨率原图放大后不一定更清晰。
->
-> **文件说明：** 每次最多上传 **2 个文件**，单个不超过 **6 MB**、合计不超过 **10 MB**，PDF 最多 **30 页**。Office 文档会提取部分文字或表格，不保证保留图片、动画与完整排版；文本内容过长时会截取。上传的附件会送往 Gemini 处理，请勿上传包含密码或个人敏感信息的文件。服务端不长期保存附件。
+图片与 PDF 作为文件内容交给 Gemini；Office 文档由后端提取可读取的文字与表格数据。背景上传支持 JPG、PNG、WebP，HEIF／HEIC 可尝试在浏览器中转换为 JPG，不经过 ASTUDYA 后端上传。
 
-## 界面展示
-
-当前 Web 端支持日间与夜间主题以及个性化背景。
-
-**截图待补充：** 为保证展示内容可信，计划放入两张从实际应用截取的截图，而不是使用模拟 Gemini 回答的设计稿：
-
-- `docs/screenshots/day-mode.png` —— 日间模式与快速解答。
-- `docs/screenshots/night-mode.png` —— 夜间模式与交互式教学。
-
-截图文件加入仓库后，会在这里直接嵌入展示。
-
-## 技术栈
+## 技术架构
 
 | 层次 | 技术 |
 | --- | --- |
+| 前端 | HTML、CSS、原生 JavaScript |
 | 后端 | Python、FastAPI、Pydantic |
-| AI 模型接口 | Google Gen AI SDK（Gemini API） |
-| 前端 | HTML、CSS、原生 JavaScript（FormData、多文件选择、浏览器本地存储） |
-| 服务器 | Uvicorn |
-| 配置管理 | `python-dotenv` / 环境变量 |
-| 文档处理 | `python-docx`、`python-pptx`、`openpyxl`、`pypdf` |
-| 数据与存储 | 浏览器本地存储（界面偏好、快捷提问）；JSON 文件（CLI 任务数据） |
-| 版本管理与部署 | Git、GitHub、Render |
+| AI 模型 | Google Gen AI SDK、Gemini API |
+| 文件处理 | pypdf、python-docx、python-pptx、openpyxl |
+| 本地存储 | localStorage、IndexedDB |
+| 服务与部署 | Uvicorn、GitHub、Render |
 
-### 请求处理流程
+### 请求流程
 
-```text
-浏览器（web/index.html）
-    │
-    ├── 纯文字提问：POST /api/ask（JSON）
-    └── 文字 + 文件：POST /api/ask-with-files（FormData）
-                 │
-                 ▼
-          FastAPI（web/app.py）
-                 │
-      输入校验 → 基础限流 → 选择教学模式
-                 │
-          ┌──────┴──────┐
-          │   文件解析   │
-          │ 图片/PDF直传 │
-          │ Office提文本 │
-          └──────┬──────┘
-                 ▼
-             Gemini API
-                 │
-                 ▼
-            返回 AI 回答
-```
+1. 前端根据是否包含附件向后端发送请求：纯文字使用 `POST /api/ask`（JSON），带文件使用 `POST /api/ask-with-files`（FormData）。
+2. FastAPI 校验请求与附件，执行基础调用频率限制。
+3. 后端根据所选学习模式准备提示词；交互式教学会加入客户端提交的近期对话。
+4. 后端调用 Gemini API，前端接收回答并展示 Markdown 格式内容。
 
-API Key 只在后端通过环境变量读取，不放入浏览器代码。教学历史由前端随请求提交，**当前没有用户账号、服务端历史数据库或跨设备会话同步**。快捷提问和外观设置只存储在当前浏览器；附件仅用于当次请求，不作为云端知识库保存。
+API Key 通过后端环境变量管理，不暴露到浏览器。目前没有用户登录、服务端会话数据库或跨设备同步。
 
 ## 本地运行
 
-需要 Python 3（开发时使用 Python 3.14）和你自己的可用 Gemini API Key。
+需要 Python 3 环境与可用的 Gemini API Key。以下以 Windows PowerShell 为例。
 
-### 1. 下载代码
+**1. 获取项目**
 
-```powershell
+~~~powershell
 git clone https://github.com/honsin2368/ai-study-assistant.git
 cd ai-study-assistant
-```
+~~~
 
-### 2. 创建虚拟环境并安装依赖
+**2. 安装依赖**
 
-以下是 Windows PowerShell 示例：
-
-```powershell
+~~~powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-deploy.txt
-```
+~~~
 
-`requirements-deploy.txt` 是 Web 部署所需的精简依赖清单；`requirements.txt` 保留了开发环境使用的完整依赖清单。
+**3. 配置环境变量**
 
-### 3. 配置环境变量
+在项目根目录创建 `.env`，填写自己的密钥与实际可用的模型 ID：
 
-在仓库根目录创建 `.env` 文件，填写自己的凭证和实际可用的模型 ID：
+~~~dotenv
+GEMINI_API_KEY=your_api_key
+GEMINI_MODEL=your_model_id
+~~~
 
-```dotenv
-GEMINI_API_KEY=在这里填写你的API密钥
-GEMINI_MODEL=在这里填写你可用的Gemini模型ID
-```
+`.env` 已加入 `.gitignore`，不要把真实密钥提交到仓库。
 
-**切勿把真实 API Key 提交到 GitHub。** 仓库的 `.gitignore` 已忽略 `.env`。
+**4. 启动服务**
 
-### 4. 启动网站
-
-```powershell
+~~~powershell
 .\.venv\Scripts\python.exe -m uvicorn web.app:app --reload
-```
+~~~
 
-打开浏览器访问：**http://127.0.0.1:8000**
-
-### 5. 运行独立的命令行任务管理器
-
-```powershell
-.\.venv\Scripts\python.exe main.py
-```
-
-CLI 提供添加、查看、完成、删除、搜索学习任务和统计完成率等功能；任务保存在本地 `tasks.json`。
+浏览器访问 `http://127.0.0.1:8000`。
 
 ## 项目结构
 
-```text
+~~~text
 ai-study-assistant/
-├── main.py                    # 独立的 CLI 学习任务管理器
 ├── web/
-│   ├── app.py                 # FastAPI 路由、Gemini 调用、基础限流
-│   ├── attachments.py         # 图片/PDF 校验与 Office 文本提取
-│   └── index.html             # Web 界面、自定义提问与附件上传
+│   ├── app.py                 # FastAPI 路由、Gemini 调用与限流
+│   ├── attachments.py         # 附件校验及内容提取
+│   └── index.html             # Web 界面与交互逻辑
 ├── tests/
-│   └── test_uploads.py        # 附件解析与接口自动化测试
-├── requirements-deploy.txt    # 线上精简依赖
+│   └── test_uploads.py        # 文件处理与接口测试
+├── main.py                    # 独立的命令行学习任务管理器
+├── requirements-deploy.txt    # Web 运行依赖
 ├── requirements.txt           # 开发环境依赖
-├── .gitignore
 └── README.md
-```
+~~~
 
-其中 `.env`（API Key）和 `tasks.json`（本地任务数据）在运行时由个人自行创建或生成，不应提交包含个人信息或密钥的文件。
+项目从命令行学习任务管理器逐步扩展为 Web 应用。`main.py` 目前与 Web 学习助手独立，尚未整合到网页。
 
-## Render 部署说明
+## 测试与部署
 
-本项目使用 GitHub 代码仓库连接 Render 的 **Python Web Service**。
+仓库包含 10 项自动化测试，覆盖 TXT、DOCX、PPTX、XLSX 解析、PDF 页数限制、异常文件处理、文件提问接口与教学历史。测试曾在本地通过；接口测试采用模拟 Gemini 响应，不等于已覆盖所有真实模型调用场景。
+
+~~~powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+~~~
+
+线上使用 Render Web Service，连接 GitHub 的 `main` 分支：
 
 | 配置项 | 值 |
 | --- | --- |
-| Branch | `main` |
-| Root Directory | 留空 |
 | Build Command | `pip install -r requirements-deploy.txt` |
 | Start Command | `uvicorn web.app:app --host 0.0.0.0 --port $PORT` |
-| Environment Variables | `GEMINI_API_KEY`、`GEMINI_MODEL`（在 Render 后台配置） |
+| 环境变量 | `GEMINI_API_KEY`、`GEMINI_MODEL` |
 
-免费实例可能自动休眠，因此首次访问速度不代表常驻服务器的性能。
+## 已知限制
 
-## 测试与当前限制
+- 每次最多上传 2 个文件，单文件不超过 6 MB、总计不超过 10 MB，PDF 最多 30 页。Office 文件无法保证保留图片、动画或完整排版。
+- 附件只用于当次请求，服务端不长期保存。上传的学习资料会提交给 Gemini，请勿包含密码等敏感信息。
+- 全站基础限流为每分钟 4 次、每小时 20 次，计数在服务进程内存中，尚不能替代正式的用户级配额管理。
+- 快捷提问、界面偏好与背景图片仅保存在当前浏览器中，清除网站数据或更换设备后无法自动同步。
+- 部分从微博等平台下载的图片仍可能无法解码，已在 [Issue #4](https://github.com/honsin2368/ai-study-assistant/issues/4) 记录。HEIF 转 JPG 功能已通过手机人工测试，但不保证兼容所有 HEIF 编码。
+- 尚未实现用户登录、服务端历史会话持久化、知识库检索（RAG）或完整端到端自动化测试。
 
-**已完成的人工验证：** V0.2 的本地与公网快速问答、交互式多轮教学、主题和个性化设置及保存；V0.3 的本地自定义快捷提问、TXT／图片／PDF／Office 文件结合文字提问；手机本地测试过背景缩放、移动、旋转及 HEIF 转 JPG 后显示。命令行版本曾验证任务管理与 JSON 保存功能。
+## 关于项目
 
-**已完成的自动化测试：** `tests/test_uploads.py` 中的 **10 项用例通过**，覆盖 TXT／DOCX／PPTX／XLSX 解析、PDF 页数限制、错误文件拒绝、后端文件提问及导师历史请求。该测试使用模拟 Gemini 响应，不代表真实云端模型的每种文件格式都一定处理成功。
-
-在项目目录执行：
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
-
-**当前限制：**
-
-- 已有基础单元测试，但尚未实现完整端到端自动化测试、用户登录、云端会话持久化和知识库检索（RAG）。
-- 公开网站仍需在新版部署完成后重新进行一次实际验收；合并代码不等于线上运行一定正常。
-- 快捷提问与个性化设置只保存在当前浏览器，更换设备或清除站点数据后无法同步。
-- **背景格式兼容性：** 常见 JPG／PNG／WebP 可作为背景；HEIF／HEIC 上传会尝试在当前浏览器转换为 JPG，需要联网加载转换组件，且不保证所有 HEIF 编码均能转换。部分从微博等平台下载的图片仍可能无法解码，已记录为 [Issue #4](https://github.com/honsin2368/ai-study-assistant/issues/4)，等待获取原始文件排查。图片在浏览器本地处理，不送往 ASTUDYA 后端。
-- 部分 Office 元素（如图形、动画、图片）未被提取；文件内容限制可能导致部分内容被截断。
-- CLI 任务管理与 Web 页面尚未整合。
-- 基础限流按**整个服务**统计（每分钟最多 4 次、每小时最多 20 次），不是按用户独立计数；计数存于进程内存，实例重启后重置，不能替代正式的安全或成本控制方案。
-- 公开演示站点的可用性和响应速度受到 Render 免费服务、Gemini 服务与 API 配额影响。
-
-## 后续计划
-
-- 补充真实运行截图、更多边界场景和完整端到端自动化测试。
-- 排查部分平台下载图片的浏览器解码问题（[Issue #4](https://github.com/honsin2368/ai-study-assistant/issues/4)）。
-- 改进公网接口的安全防护和额度控制。
-- 将 CLI 学习任务管理整合进 Web 端。
-- 根据学习需要进一步探索知识整理和检索增强功能。
-
----
-
-**开发说明：** 这是一个个人学习实践项目，开发过程中结合 AI 辅助进行需求分析、代码编写、调试和界面迭代。README 仅陈述已实现或已验证的能力；计划中的功能不作为已完成成果展示。
+这是一个持续迭代的个人学习项目。开发过程中使用 AI 辅助需求分析、代码实现和调试，并通过本地测试、Git 版本管理及线上验证逐步完善。本文仅描述已实现的功能和已知限制。
