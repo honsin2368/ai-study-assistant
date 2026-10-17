@@ -122,6 +122,17 @@ def to_gemini_part(filename: str, data: bytes):
     if extension == ".pdf":
         if not data[:1024].lstrip().startswith(b"%PDF-"):
             raise AttachmentError(f"PDF「{safe_name}」格式不正确。")
+        from pypdf import PdfReader
+        try:
+            reader = PdfReader(BytesIO(data), strict=False)
+            if reader.is_encrypted:
+                raise AttachmentError("暂不支持加密的 PDF，请上传未加密版本。")
+            if len(reader.pages) > 30:
+                raise AttachmentError("公开演示版一次最多分析 30 页 PDF，请拆分文档。")
+        except AttachmentError:
+            raise
+        except Exception as exc:
+            raise AttachmentError(f"PDF「{safe_name}」无法解析或已损坏。") from exc
         return types.Part.from_bytes(data=data, mime_type="application/pdf"), False
 
     if extension in OFFICE_EXTENSIONS:
