@@ -1,87 +1,1431 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Study Assistant</title>
+  <meta name="color-scheme" content="light">
+  <title>AI Study Assistant | AI 学习助手</title>
   <style>
+
+    :root {
+      --accent: #4262c8;
+      --text-color: #172132;
+      --page-color: #eaf0f7;
+      --card-opacity: .64;
+      --control-opacity: .78;
+      --glass-blur: 12px;
+      --font-scale: 1;
+      --wallpaper-opacity: .98;
+      --wallpaper-blur: 0px;
+      --wallpaper-brightness: 1;
+      --wallpaper-position-x: 50%;
+      --wallpaper-position-y: 50%;
+      --ui-font-stack: "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+      --reading-leading: 1.83;
+      --page-max-width: 1190px;
+      --line: rgba(255,255,255,.58);
+      --muted: #627087;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fb;
-      margin: 0;
-      padding: 40px 20px;
-      color: #243044;
+      margin: 0; min-height: 100vh; background: var(--page-color);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: calc(15px * var(--font-scale)); line-height: 1.68;
+      color: var(--text-color);
     }
-    main {
-      max-width: 680px;
-      margin: auto;
+    #wallpaper {
+      position: fixed; inset: -18px;
+      background-image: radial-gradient(ellipse at 12% 20%, #cfdfed 0%, transparent 50%),
+                        radial-gradient(ellipse at 85% 80%, #ecddd0 0%, transparent 48%),
+                        linear-gradient(135deg, #e8f0f9, #f1f4f7);
+      background-position: var(--wallpaper-position-x) var(--wallpaper-position-y);
+      background-size: cover; background-repeat: no-repeat;
+      opacity: var(--wallpaper-opacity);
+      filter: blur(var(--wallpaper-blur)) brightness(var(--wallpaper-brightness));
+      pointer-events: none; z-index: 0;
     }
+    #backgroundTint { position:fixed; inset:0; pointer-events:none; z-index:0; background:var(--page-color); opacity:.06; }
+    .app-shell { position:relative; z-index:1; }
+    button, textarea, input, select { font: inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.55; }
+    button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline:3px solid rgba(66,98,200,.4); outline-offset:2px; }
+    .topbar {
+      max-width: 1260px; margin: 18px auto 0; border:1px solid rgba(255,255,255,.66);
+      border-radius:22px; background:rgba(255,255,255,.48); -webkit-backdrop-filter:blur(18px);
+      backdrop-filter:blur(18px); box-shadow:0 10px 32px rgba(37,56,75,.05);
+    }
+    .topbar-inner { padding:14px 22px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:16px; font-weight:740; letter-spacing:-.35px; }
+    .brand-mark { display:grid;place-items:center;width:35px;height:35px;border-radius:12px;background:#24354c;color:white;font-size:17px;font-weight:750; }
+    .header-actions { display:flex;align-items:center;gap:13px; }
+    .version { font-size:11px;color:#63728a;letter-spacing:.3px; }
+    .header-button { display:flex;align-items:center;gap:9px;border-radius:13px;background:rgba(255,255,255,.66);border:1px solid rgba(255,255,255,.86);padding:9px 14px;font-size:13px;color:#34465c;font-weight:680;box-shadow:0 2px 10px rgba(20,40,70,.035); }
+    .header-button:hover,.header-button[aria-expanded='true'] {background:#fff;}
+    .header-button .setting-symbol {font-size:15px;line-height:1;color:var(--accent)}
+    main { max-width:var(--page-max-width);margin:auto;padding:52px 28px 45px; }
+    .intro { text-align:center;margin:0 0 30px; }
+    .eyebrow { color:#4762a0;font-size:11px;font-weight:750;letter-spacing:2px; }
+    h1 { font-size:clamp(34px,4.4vw,54px);line-height:1.24;letter-spacing:-1.9px;font-weight:790;margin:11px 0 10px; }
+    .intro p {margin:0;color:#47576d;font-size:14px;}
+    .workspace {display:grid;grid-template-columns:minmax(302px,355px) minmax(0,1fr);align-items:start;gap:18px;}
+    .panel {
+      min-width:0;border:1px solid rgba(255,255,255,.62);border-radius:22px;
+      background:rgba(255,255,255,var(--card-opacity));
+      backdrop-filter:blur(var(--glass-blur)) saturate(1.3);
+      -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.3);
+      box-shadow:0 14px 44px rgba(31,48,75,.09), inset 0 1px 0 rgba(255,255,255,.55);
+    }
+    .composer {padding:25px;position:sticky;top:16px;}
+    .panel-label {color:#667c94;font-size:10px;font-weight:720;letter-spacing:1.65px;}
+    .panel-title {font-size:20px;font-weight:760;margin:5px 0 0;line-height:1.45;letter-spacing:-.4px;}
+    .panel-description {font-size:12px;color:#56657b;margin:7px 0 0;}
+    .field-heading {display:block;margin:22px 0 10px;font-size:13px;font-weight:720;}
+    .mode-switch {display:flex;gap:3px;border:1px solid rgba(255,255,255,.7);background:rgba(238,243,249,.5);border-radius:13px;padding:4px;}
+    .mode-button {flex:1;min-width:0;padding:10px 5px;border:1px solid transparent;background:transparent;color:#586b80;font-size:13px;font-weight:650;border-radius:9px;}
+    .mode-button.active {background:rgba(255,255,255,.87);color:var(--accent);border-color:rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(20,44,72,.07);}
+    .mode-description {margin:9px 0 0;min-height:37px;color:#64738b;font-size:12px;}
+    .suggestions {display:flex;flex-wrap:wrap;gap:7px;}
+    .suggestion {border:1px solid rgba(255,255,255,.74);padding:7px 11px;border-radius:9px;background:rgba(255,255,255,.55);color:#506179;font-size:12px;}
+    .suggestion:hover {background:#fff;color:var(--accent)}
+    textarea {display:block;width:100%;min-height:153px;resize:vertical;padding:14px;background:rgba(255,255,255,.7);color:var(--text-color);font-size:14px;line-height:1.75;border:1px solid rgba(218,226,238,.85);border-radius:12px;outline:none;}
+    textarea::placeholder {color:#92a0b2;}
+    textarea:focus {background:rgba(255,255,255,.88);border-color:#9aadea;box-shadow:0 0 0 3px rgba(66,98,200,.08)}
+    .input-hint {font-size:11px;color:#687b8f;margin-top:9px;}
+    .actions {display:flex;gap:9px;margin-top:20px;}
+    .btn {padding:11px 15px;border-radius:11px;border:1px solid transparent;font-size:13px;font-weight:670;}
+    .btn-primary {flex:1;background:var(--accent);color:white;}
+    .btn-primary:hover:not(:disabled) {filter:brightness(.9);}
+    .btn-secondary {background:rgba(255,255,255,.73);border-color:rgba(225,231,240,.9);color:#45566c;}
+    .btn-secondary:hover:not(:disabled) {background:#fff;}
+    .response-panel {min-height:490px;overflow:hidden;}
+    .response-header {padding:21px 25px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid rgba(255,255,255,.48);}
+    .response-header .panel-title {font-size:18px;}
+    .status {display:flex;align-items:center;gap:7px;font-size:12px;color:#61758b;white-space:nowrap;}
+    .status-dot {width:7px;height:7px;border-radius:50%;background:#94a3b8;}
+    .status-dot.success {background:#16a34a;}.status-dot.loading{background:#e9a328;animation:pulse 1s infinite}.status-dot.error{background:#ef4444;}
+    @keyframes pulse {50%{opacity:.28}}
+    .response-content {padding:25px;min-height:358px;max-height:72vh;overflow-y:auto;overflow-wrap:anywhere;}
+    .placeholder {color:#73859b;font-size:14px;padding:13px 0;}
+    .response-footer {margin:0 25px;padding:15px 0;border-top:1px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .response-note {font-size:11px;color:#76879a;}
+    .conversation {display:flex;flex-direction:column;gap:13px;}
+    .chat-message {min-width:0;padding:14px 16px;border-radius:14px;overflow-wrap:anywhere;}
+    .chat-message.user {align-self:flex-end;max-width:87%;background:rgba(225,236,255,.82);border:1px solid rgba(216,230,250,.8);}
+    .chat-message.model {align-self:stretch;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.5);}
+    .message-label {color:#62718a;font-size:11px;font-weight:740;margin-bottom:8px;}.chat-message.user .message-body{white-space:pre-wrap}
+    .markdown {font-size:calc(14px * var(--font-scale));line-height:1.9;}
+    .markdown h1,.markdown h2,.markdown h3 {line-height:1.48;margin:17px 0 9px;}.markdown h1{font-size:22px}.markdown h2{font-size:19px}.markdown h3{font-size:16px}
+    .markdown p {margin:9px 0;white-space:pre-wrap}.markdown p:first-child{margin-top:0}
+    .markdown ul,.markdown ol{margin:10px 0;padding-left:23px}.markdown li{margin:4px 0}
+    .markdown code{font:12px/1.65 Consolas,'Courier New',monospace}
+    .markdown :not(pre)>code{padding:2px 5px;border-radius:5px;background:rgba(216,229,255,.75);color:#234d94}
+    .markdown pre{background:#1b273a;color:#e5eaf3;border-radius:12px;padding:16px;overflow-x:auto;margin:14px 0}.markdown pre code{color:inherit;white-space:pre}
+    .markdown blockquote{border-left:3px solid var(--accent);padding:10px 13px;background:rgba(255,255,255,.5);margin:11px 0}.markdown a{color:var(--accent)}
+    .footer {display:flex;justify-content:space-between;gap:12px;color:#51647b;font-size:11px;margin-top:28px;padding:0 6px;}
+
+    /* 如参考图：轻盈、悬浮、可独立滚动的小窗，不遮暗页面 */
+    .settings-backdrop {position:fixed;inset:0;z-index:20;background:transparent;cursor:default;}
+    .settings-panel {
+      position:fixed;z-index:21;top:90px;right:max(22px,calc((100vw - 1260px)/2));
+      width:min(402px,calc(100vw - 32px));max-height:min(740px,calc(100dvh - 110px));
+      overflow:hidden;display:flex;flex-direction:column;
+      color:#26374b;border:1px solid rgba(255,255,255,.76);border-radius:24px;
+      background:rgba(232,240,248,.69);
+      -webkit-backdrop-filter:blur(32px) saturate(1.35);
+      backdrop-filter:blur(32px) saturate(1.35);
+      box-shadow:0 22px 70px rgba(28,44,67,.19),inset 0 1px 0 rgba(255,255,255,.68);
+    }
+    .settings-top {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 12px;cursor:grab;touch-action:none;user-select:none;}
+    .settings-top:active {cursor:grabbing;}
+    .settings-top h2 {font-size:19px;letter-spacing:-.4px;margin:0;font-weight:790;}
+    .setting-subtitle {color:#738297;font-size:11px;margin:2px 0 0;}
+    .close-settings {width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.8);border-radius:50%;background:rgba(255,255,255,.59);font-size:21px;line-height:1;color:#536579;}
+    .close-settings:hover {background:white;}
+    .settings-tabs {display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,.63);padding:0 16px 12px;}
+    .settings-tab {flex:1;padding:9px 12px;border-radius:12px;border:1px solid transparent;background:transparent;color:#657389;font-size:13px;font-weight:650;}
+    .settings-tab[aria-selected='true'] {background:rgba(255,255,255,.65);border-color:rgba(255,255,255,.65);box-shadow:0 2px 9px rgba(37,56,78,.05);color:#243950;}
+    .settings-scroll {padding:5px 16px 10px;overflow-y:auto;min-height:160px;overscroll-behavior:contain;scrollbar-width:thin;}
+    .setting-group {padding:16px 4px 13px;border-bottom:1px solid rgba(255,255,255,.55);}
+    .setting-group:last-child{border-bottom:0}
+    .setting-group h3 {margin:0 0 13px;font-size:13px;font-weight:760;}
+    .setting-description {font-size:11px;color:#69798c;line-height:1.65;margin:9px 0 0;}
+    .settings-buttons {display:flex;gap:8px;flex-wrap:wrap;}
+    .settings-buttons .btn {padding:9px 12px;font-size:12px;}
+    .setting-row {margin:0 0 17px;}.setting-row:last-child{margin-bottom:0}
+    .setting-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:620;color:#3b5068;margin-bottom:9px;}
+    .setting-value {font-variant-numeric:tabular-nums;color:#637a95;font-size:11px;}
+    .setting-row input[type='range'] {width:100%;accent-color:var(--accent);cursor:pointer;}
+    .color-row {display:flex;align-items:center;justify-content:space-between;padding:9px 0;font-size:12px;color:#3b5068;}
+    .color-row input {width:52px;height:30px;padding:3px;background:rgba(255,255,255,.6);border-radius:9px;border:1px solid rgba(255,255,255,.8);}
+    .setting-select {display:block;width:100%;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.77);border-radius:11px;padding:10px;color:#34485d;font-size:12px;}
+    .hidden-file {position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
+    .file-label {display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+    .image-preview {display:flex;align-items:center;gap:11px;margin:12px 0 0;padding:8px;border-radius:13px;background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.48);}
+    .image-thumbnail {width:62px;height:45px;flex-shrink:0;background:linear-gradient(135deg,#ccdce9,#f2e2d3);background-size:cover;background-position:center;border-radius:9px;}
+    .image-preview p {margin:0;font-size:11px;line-height:1.5;color:#60738b;}
+    .settings-footer {padding:12px 17px 15px;border-top:1px solid rgba(255,255,255,.6);display:flex;gap:9px;align-items:center;}
+    .settings-footer .btn:first-child{flex:1}.settings-footer .btn:last-child{flex:1.2}
+    .settings-notice {font-size:11px;color:#52677f;min-height:0;margin:0 16px 12px;}
+    .setting-note {font-size:12px;padding:13px;border-radius:12px;background:rgba(255,255,255,.43);line-height:1.75;color:#50647a;}
+    @media (max-width:860px) {
+      .workspace{grid-template-columns:1fr}.composer{position:static}.response-panel{min-height:360px}
+    }
+    @media (max-width:560px) {
+      .topbar{margin:10px 10px 0}.topbar-inner{padding:10px 12px}.brand{font-size:14px}.version{display:none}
+      .header-button{padding:8px 10px}.header-button .setting-symbol{display:none}
+      main{padding:30px 14px 40px}.intro{text-align:left;margin-bottom:24px}h1{font-size:36px;letter-spacing:-1.3px}
+      .composer{padding:19px}.response-header,.response-content{padding:19px}.response-footer{margin:0 19px}.footer{flex-direction:column;gap:3px}
+      .settings-panel{top:75px;right:10px;width:calc(100vw - 20px);max-height:calc(100dvh - 90px);border-radius:22px}
+      .settings-top{touch-action:auto;cursor:default;}
+    }
+    @media (prefers-reduced-motion:reduce) {html{scroll-behavior:auto}}
+
+
+    /* Desktop: primary interaction fits within one viewport. Only answer scrolls. */
+    @media (min-width: 861px) and (min-height: 700px) {
+      html, body { height: 100%; overflow: hidden; }
+      .app-shell { height: 100dvh; display: flex; flex-direction: column; }
+      .topbar { flex: 0 0 auto; margin: 10px auto 0; width: calc(100% - 32px); }
+      .topbar-inner { padding: 10px 17px; }
+      .brand-mark { width: 31px; height: 31px; border-radius: 9px; }
+      .header-button { padding: 7px 12px; }
+      main { box-sizing: border-box; min-height: 0; width: 100%; flex: 1;
+        display: flex; flex-direction: column; padding: 10px 22px 10px; }
+      .intro { flex: 0 0 auto; display: flex; align-items: center;
+        justify-content: center; gap: 18px; text-align: left;
+        margin: 0 0 10px; min-height: 52px; }
+      .intro .eyebrow { display: none; }
+      .intro h1 { font-size: clamp(25px, 2.8vw, 34px); letter-spacing: -.9px;
+        margin: 0; line-height: 1.2; white-space: nowrap; }
+      .intro p { max-width: 390px; font-size: 12px; line-height: 1.5; }
+      .workspace { min-height: 0; flex: 1; max-height: 635px; align-items: stretch;
+        grid-template-columns: minmax(305px, 345px) minmax(0,1fr); gap: 15px; }
+      .composer { height: 100%; position: static; display: flex; flex-direction: column;
+        min-height: 0; padding: 15px 18px; overflow-y: auto; scrollbar-width: thin; }
+      .panel-label { font-size: 9px; }
+      .composer .panel-title { font-size: 18px; margin-top: 2px; }
+      .panel-description { margin-top: 3px; font-size: 11px; }
+      .field-heading { margin: 12px 0 6px; font-size: 12px; }
+      .mode-switch { padding: 3px; }
+      .mode-button { padding: 7px 4px; font-size: 12px; }
+      .mode-description { margin: 6px 0 0; min-height: 20px; font-size: 11px; line-height: 1.4; }
+      .suggestions { gap: 5px; }
+      .suggestion { padding: 5px 8px; font-size: 11px; }
+      textarea { min-height: 80px; flex: 1 1 90px; resize: none;
+        padding: 10px 11px; font-size: 13px; line-height: 1.6; }
+      .input-hint { margin-top: 4px; font-size: 10px; }
+      .actions { margin-top: 8px; }
+      .actions .btn { padding: 9px 13px; }
+      .response-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+      .response-header { flex: 0 0 auto; padding: 13px 18px 11px; }
+      .response-header .panel-title { font-size: 18px; }
+      .response-content { flex: 1 1 auto; min-height: 0; max-height: none;
+        overflow-y: auto; scrollbar-width: thin; padding: 16px 18px; }
+      .response-footer { flex: 0 0 auto; margin: 0 18px; padding: 10px 0; }
+      .footer { flex: 0 0 auto; margin-top: 6px; font-size: 10px; }
+    }
+    /* On shorter desktop windows, normal page scrolling is safer than clipping controls. */
+    @media (min-width: 861px) and (max-height: 699px) {
+      .intro { margin-bottom: 15px; }
+      main { padding-top: 20px; }
+    }
+    /* Mobile/tablet: vertical document scrolling, never hide content. */
+    @media (max-width: 860px) {
+      html, body { overflow-y: auto; }
+      .composer { height: auto; }
+      .response-content { max-height: 65dvh; }
+    }
+
+    /* ===== 视觉精修 · Editorial glass / readable microtypography ===== */
+    body {
+      font-family: var(--ui-font-stack);
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      letter-spacing: -.012em;
+    }
+    .topbar {
+      border-color: rgba(255,255,255,.74);
+      background: rgba(255,255,255,.53);
+      box-shadow: 0 10px 35px rgba(27,45,72,.07), inset 0 1px 0 rgba(255,255,255,.75);
+    }
+    .brand { font-size: 16px; font-weight: 740; letter-spacing: -.035em; }
+    .brand-mark {
+      font-size: 15px; letter-spacing: -.05em;
+      background: #25384e;
+      box-shadow: 0 3px 10px rgba(25,43,65,.15);
+    }
+    .version {
+      color: #53677e; font-size: 11.5px;
+      font-weight: 600; letter-spacing: .025em;
+    }
+    .header-button {
+      color: #263b52; font-size: 13.5px;
+      border-color: rgba(255,255,255,.86);
+      box-shadow: 0 4px 12px rgba(19,45,76,.06);
+      transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
+    }
+    .header-button:hover { transform: translateY(-1px); box-shadow: 0 7px 17px rgba(19,45,76,.09); }
+    .intro h1 { font-weight: 760; letter-spacing: -.06em; }
+    .intro p { color: #3f536c; font-size: 14px; letter-spacing: -.01em; font-weight: 510; }
+    .panel {
+      border-color: rgba(255,255,255,.73);
+      box-shadow: 0 16px 44px rgba(28,45,67,.095), inset 0 1px 0 rgba(255,255,255,.69);
+    }
+    .panel-label {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 11px; font-weight: 740; letter-spacing: .13em;
+      color: #526b87;
+    }
+    .label-separator { color: #a1aec0; font-weight: 400; letter-spacing: 0; }
+    .panel-title { color: var(--text-color); font-weight: 760; letter-spacing: -.04em; }
+    .panel-description { color: #52657b; font-size: 13px; line-height: 1.65; }
+    .field-heading { color: #26394e; font-size: 13px; font-weight: 710; letter-spacing: -.012em; }
+    .mode-switch { background: rgba(235,242,249,.43); border-color: rgba(255,255,255,.76); }
+    .mode-button { color: #52667f; font-size: 13px; font-weight: 640; transition: .18s ease; }
+    .mode-button.active {
+      color: var(--accent); background: rgba(255,255,255,.90);
+      border-color: rgba(255,255,255,.98);
+      box-shadow: 0 3px 12px rgba(35,58,92,.09);
+    }
+    .mode-button:hover:not(.active):not(:disabled) { background: rgba(255,255,255,.45); }
+    .mode-description { color: #4f6279; font-size: 12px; line-height: 1.55; }
+    .suggestion {
+      font-size: 12px; color: #43576d; font-weight: 540;
+      border-color: rgba(255,255,255,.83);
+      box-shadow: 0 2px 7px rgba(30,54,80,.025);
+      transition: transform .18s, background .18s, color .18s;
+    }
+    .suggestion:hover { transform: translateY(-1px); }
     textarea {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 15px;
-      font: inherit;
-      border: 1px solid #d8dfeb;
-      border-radius: 10px;
-      resize: vertical;
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(208,219,233,.95);
+      color: var(--text-color);
+      box-shadow: inset 0 1px 2px rgba(40,60,88,.025);
     }
-    button {
-      margin-top: 12px;
-      padding: 12px 24px;
-      background: #356bc0;
-      color: white;
-      border: 0;
-      border-radius: 8px;
-      cursor: pointer;
+    textarea::placeholder { color: #71839a; opacity: 1; }
+    .input-hint { color: #506781; font-size: 12px; font-weight: 450; line-height: 1.65; }
+    .input-hint kbd {
+      display: inline-block; padding: 1px 6px; margin: 0 2px 0 0;
+      background: rgba(255,255,255,.70); border: 1px solid rgba(169,184,202,.45);
+      border-bottom-color: rgba(142,160,184,.55); border-radius: 5px;
+      color: #42546b; font-family: inherit; font-size: 11px; font-weight: 600;
+      line-height: 1.45; vertical-align: baseline;
     }
-    #answer {
-      background: white;
-      padding: 22px;
-      margin-top: 25px;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      min-height: 80px;
+    .btn { font-size: 13.5px; font-weight: 650; transition: transform .18s, box-shadow .18s, filter .18s; }
+    .btn-primary { box-shadow: 0 5px 14px rgba(66,98,200,.16); }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(66,98,200,.21); }
+    .btn-secondary { border-color: rgba(209,220,234,.87); }
+    .response-header { border-bottom-color: rgba(255,255,255,.71); }
+    .status { color: #4b6078; font-size: 12px; font-weight: 550; letter-spacing: 0; }
+    .status-dot { box-shadow: 0 0 0 3px rgba(148,163,184,.09); }
+    .status-dot.success { box-shadow: 0 0 0 3px rgba(22,163,74,.12); }
+    .placeholder { color: #61778e; font-size: 14px; letter-spacing: -.01em; line-height: 1.7; }
+    .response-note { color: #536b83; font-size: 12px; font-weight: 470; }
+    .message-label { color: #4f6882; font-size: 12px; letter-spacing: .01em; }
+    .markdown { font-size: calc(14.5px * var(--font-scale)); line-height: var(--reading-leading); letter-spacing: -.01em; }
+    .markdown h1,.markdown h2,.markdown h3 { color: var(--text-color); letter-spacing: -.035em; }
+    .markdown p { color: var(--text-color); }
+    .footer { color: #52677e; font-size: 11.5px; letter-spacing: .008em; }
+    .footer-divider { padding: 0 5px; color: #9aaabd; }
+    /* The floating panel shares the main page's quieter editorial type scale. */
+    .settings-top h2 { font-size: 20px; font-weight: 740; letter-spacing: -.04em; }
+    .setting-subtitle { font-size: 12px; color: #566e86; }
+    .settings-tab { font-size: 13px; }
+    .setting-group h3 { font-size: 14px; }
+    .setting-heading { font-size: 12.5px; color: #2b425a; }
+    .setting-value { font-size: 12px; color: #546c85; }
+    .setting-description { color: #516880; font-size: 12px; }
+    .setting-note { color: #425971; font-size: 12.5px; }
+    .settings-notice { font-size: 12px; }
+
+    @media (min-width: 861px) and (min-height: 700px) {
+      .workspace { grid-template-columns: minmax(315px, 358px) minmax(0, 1fr); }
+      .composer { padding: 17px 19px; }
+      .panel-label { font-size: 11px; letter-spacing: .11em; }
+      .composer .panel-title { font-size: 19px; margin-top: 4px; }
+      .panel-description { font-size: 12.5px; line-height: 1.5; margin-top: 4px; }
+      .field-heading { font-size: 13px; margin: 12px 0 7px; }
+      .mode-button { font-size: 13px; padding: 8px 5px; }
+      .mode-description { font-size: 12px; line-height: 1.5; margin-top: 7px; min-height: 18px; }
+      .suggestion { font-size: 12px; padding: 6px 9px; }
+      .suggestions { gap: 6px; }
+      textarea { min-height: 77px; flex: 1 1 86px; font-size: 14px; padding: 11px 12px; }
+      .input-hint { font-size: 11.5px; margin-top: 7px; }
+      .actions { margin-top: 9px; }
+      .actions .btn { padding: 10px 14px; }
+      .response-header { padding: 16px 21px 14px; }
+      .response-header .panel-title { font-size: 19px; }
+      .response-content { padding: 20px 21px; }
+      .response-footer { margin: 0 21px; padding: 12px 0; }
+      .footer { font-size: 11px; }
+      .intro p { font-size: 13px; }
     }
+    @media (max-width: 860px) {
+      .panel-description { font-size: 13px; }
+      .input-hint { font-size: 12px; }
+      .composer .panel-title { font-size: 21px; }
+      .suggestion { font-size: 12px; }
+      .mode-button { font-size: 13.5px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn, .suggestion, .header-button, .mode-button { transition: none; }
+    }
+
+    /* Small controls are independently adjustable, without making their text transparent. */
+    .mode-switch { background: rgba(232,240,248,calc(var(--control-opacity) * .64)); }
+    .mode-button.active { background: rgba(255,255,255,var(--control-opacity)); }
+    .suggestion { background: rgba(255,255,255,var(--control-opacity)); }
+    .suggestion:hover { background: rgba(255,255,255,min(1,calc(var(--control-opacity) + .12))); }
+    textarea { background: rgba(255,255,255,var(--control-opacity)); }
+    textarea:focus { background: rgba(255,255,255,min(1,calc(var(--control-opacity) + .08))); }
+    .btn-secondary { background: rgba(255,255,255,var(--control-opacity)); }
+    .chat-message.user { background: rgba(225,236,255,var(--control-opacity)); }
+    .chat-message.model { background: rgba(255,255,255,calc(var(--control-opacity) * .76)); }
+
+    /* Extra micro-design: restrained segmented presets and thoughtful reading controls */
+    .intro { gap: 22px; }
+    .intro h1 { color: var(--text-color); }
+    .intro p { font-size: 14px; }
+    .section-headline { font-weight: 750; }
+    .setting-group h3 { font-size: 14px; letter-spacing: -.02em; }
+    .settings-top .setting-subtitle { font-size: 12px; }
+    .setting-description { font-size: 12px; line-height: 1.65; }
+    .setting-row { margin-bottom: 16px; }
+    .setting-heading { font-size: 13px; font-weight: 625; }
+    .setting-value { font-size: 12px; }
+    .settings-panel .setting-select { font-size: 13px; padding: 11px 12px; }
+    .setting-control-caption { margin-top: 5px; font-size: 11.5px; line-height: 1.55; color: #577087; }
+    .preset-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+    .preset-button {
+      min-width: 0; padding: 13px 5px 11px; display: flex;
+      flex-direction: column; justify-content: center; align-items: center; gap: 7px;
+      border: 1px solid rgba(255,255,255,.8); background: rgba(255,255,255,.35);
+      border-radius: 13px; color: #354b61; font-size: 12px; font-weight: 650;
+      transition: transform .15s, background .15s, border-color .15s;
+    }
+    .preset-button:hover { transform: translateY(-1px); background: rgba(255,255,255,.65); }
+    .preset-button[aria-pressed="true"] { background: rgba(255,255,255,.8); border-color: #8ea9eb; box-shadow: 0 1px 6px rgba(53,95,185,.1); }
+    .preset-preview {
+      display: block; width: 40px; height: 25px; border: 1px solid rgba(255,255,255,.7);
+      border-radius: 7px; background: rgba(255,255,255,.4); box-shadow: 0 4px 10px rgba(34,52,76,.06);
+    }
+    .preset-button[data-glass-preset="airy"] .preset-preview { background: rgba(255,255,255,.25); }
+    .preset-button[data-glass-preset="balanced"] .preset-preview { background: rgba(255,255,255,.65); }
+    .preset-button[data-glass-preset="clear"] .preset-preview { background: rgba(255,255,255,.93); }
+    .accent-swatches {display:flex;gap:10px;margin:12px 0 2px;flex-wrap:wrap;}
+    .swatch-button { width:33px;height:33px;border-radius:50%;border:2px solid rgba(255,255,255,.92);outline:1px solid rgba(100,115,140,.18);transition:transform .15s; }
+    .swatch-button:hover {transform:translateY(-2px) scale(1.05);}
+    .swatch-button[aria-pressed="true"] {outline:2px solid #526783; outline-offset:2px;}
+    .setting-emphasis {font-size:12px;font-weight:650;color:#344b64;}
+    @media(min-width:861px) and (min-height:700px) {
+      .panel-description{font-size:13px;}
+      .input-hint{font-size:12px;}
+      .mode-description{font-size:12px;}
+      .field-heading{font-size:13px;}
+      .suggestion{font-size:12px;}
+      .intro p{font-size:13px;}
+    }
+
+    /* ===== Day / graphite / night visual system ===== */
+    :root { --tone-rgb:255,255,255; --inner-rgb:255,255,255; --topbar-opacity:.53; }
+    .topbar {
+      background: rgba(var(--tone-rgb), var(--topbar-opacity));
+      border-color: rgba(255,255,255,.47);
+      backdrop-filter: blur(19px) saturate(1.14);
+      -webkit-backdrop-filter: blur(19px) saturate(1.14);
+    }
+    .panel {
+      background: rgba(var(--tone-rgb), var(--card-opacity));
+      backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+    }
+    .tone-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+    .tone-choice {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:8px; min-height:81px; padding:10px 4px;
+      background:rgba(255,255,255,.40); border:1px solid rgba(255,255,255,.72);
+      border-radius:13px; font-size:12px; font-weight:680; color:#30445b;
+      transition:transform .15s,background .15s,border-color .15s;
+    }
+    .tone-choice:hover { transform:translateY(-1px); background:rgba(255,255,255,.60); }
+    .tone-choice[aria-pressed="true"] { border-color:#7896d2; background:rgba(255,255,255,.78); box-shadow:0 0 0 1px rgba(83,121,198,.15); }
+    .tone-sample { width:51px; height:25px; border-radius:8px; border:1px solid rgba(255,255,255,.68); box-shadow:0 3px 10px rgba(10,24,43,.1); }
+    .tone-white {background:linear-gradient(130deg,rgba(255,255,255,.98),rgba(225,233,244,.80));}
+    .tone-gray {background:linear-gradient(130deg,#758294,#38465b);}
+    .tone-black {background:linear-gradient(130deg,#2a3548,#0c1725);}
+    .day-night-button { white-space:nowrap; }
+    @media (max-width:560px) {
+      .day-night-button {padding:8px 9px;font-size:12px;}
+      .header-actions {gap:6px;}
+      .topbar-inner {gap:8px;}
+      .brand {gap:6px;}
+    }
+    /* The two darker tones share a bright-on-dark reading palette. */
+    html[data-surface-tone="gray"], html[data-surface-tone="black"] { color-scheme:dark; }
+    html[data-surface-tone="gray"] #backgroundTint, html[data-surface-tone="black"] #backgroundTint {
+      background:#0c1420; opacity:.12;
+    }
+    html[data-surface-tone="gray"] .topbar,
+    html[data-surface-tone="black"] .topbar {
+      border-color:rgba(231,239,252,.25);
+      box-shadow:0 12px 36px rgba(5,12,24,.22),inset 0 1px 0 rgba(255,255,255,.14);
+    }
+    html[data-surface-tone="gray"] .panel,
+    html[data-surface-tone="black"] .panel {
+      border-color:rgba(231,239,252,.30);
+      box-shadow:0 16px 45px rgba(5,12,24,.25),inset 0 1px 0 rgba(255,255,255,.13);
+    }
+    html[data-surface-tone="gray"] .brand-mark,
+    html[data-surface-tone="black"] .brand-mark {
+      color:#eef5ff;background:rgba(9,17,29,.65);
+    }
+    html[data-surface-tone="gray"] .header-button,
+    html[data-surface-tone="black"] .header-button {
+      color:#edf4ff; border-color:rgba(221,234,255,.21);
+      background:rgba(var(--inner-rgb),.43);
+    }
+    html[data-surface-tone="gray"] .header-button:hover,
+    html[data-surface-tone="black"] .header-button:hover {background:rgba(var(--inner-rgb),.70);}
+    html[data-surface-tone="gray"] .version,
+    html[data-surface-tone="black"] .version,
+    html[data-surface-tone="gray"] .intro p,
+    html[data-surface-tone="black"] .intro p,
+    html[data-surface-tone="gray"] .panel-label,
+    html[data-surface-tone="black"] .panel-label,
+    html[data-surface-tone="gray"] .panel-description,
+    html[data-surface-tone="black"] .panel-description,
+    html[data-surface-tone="gray"] .mode-description,
+    html[data-surface-tone="black"] .mode-description,
+    html[data-surface-tone="gray"] .input-hint,
+    html[data-surface-tone="black"] .input-hint,
+    html[data-surface-tone="gray"] .status,
+    html[data-surface-tone="black"] .status,
+    html[data-surface-tone="gray"] .response-note,
+    html[data-surface-tone="black"] .response-note,
+    html[data-surface-tone="gray"] .placeholder,
+    html[data-surface-tone="black"] .placeholder,
+    html[data-surface-tone="gray"] .message-label,
+    html[data-surface-tone="black"] .message-label,
+    html[data-surface-tone="gray"] .footer,
+    html[data-surface-tone="black"] .footer {
+      color:var(--muted);
+    }
+    html[data-surface-tone="gray"] .field-heading,
+    html[data-surface-tone="black"] .field-heading {color:#edf4ff;}
+    html[data-surface-tone="gray"] .eyebrow,
+    html[data-surface-tone="black"] .eyebrow {color:#b6cbff;}
+    html[data-surface-tone="gray"] .mode-switch,
+    html[data-surface-tone="black"] .mode-switch {
+      background:rgba(var(--inner-rgb),.29);border-color:rgba(231,239,255,.23);
+    }
+    html[data-surface-tone="gray"] .mode-button,
+    html[data-surface-tone="black"] .mode-button {color:#d2dfef;}
+    html[data-surface-tone="gray"] .mode-button.active,
+    html[data-surface-tone="black"] .mode-button.active {
+      color:#b5cdff; background:rgba(var(--inner-rgb),var(--control-opacity));
+      border-color:rgba(231,239,255,.27);box-shadow:0 2px 9px rgba(0,0,0,.11);
+    }
+    html[data-surface-tone="gray"] .suggestion,
+    html[data-surface-tone="black"] .suggestion {
+      color:#f0f4fa;background:rgba(var(--inner-rgb),var(--control-opacity));
+      border-color:rgba(231,239,255,.26);
+    }
+    html[data-surface-tone="gray"] .suggestion:hover,
+    html[data-surface-tone="black"] .suggestion:hover {color:#c0d2ff;background:rgba(var(--inner-rgb),.9);}
+    html[data-surface-tone="gray"] textarea,
+    html[data-surface-tone="black"] textarea {
+      color:#f3f7ff; background:rgba(var(--inner-rgb),var(--control-opacity));
+      border-color:rgba(227,236,252,.27);
+    }
+    html[data-surface-tone="gray"] textarea::placeholder,
+    html[data-surface-tone="black"] textarea::placeholder {color:#b9c8d9;}
+    html[data-surface-tone="gray"] textarea:focus,
+    html[data-surface-tone="black"] textarea:focus {background:rgba(var(--inner-rgb),.94);border-color:#8ca8fa;}
+    html[data-surface-tone="gray"] .input-hint kbd,
+    html[data-surface-tone="black"] .input-hint kbd {color:#e4eefa;background:rgba(var(--inner-rgb),.64);border-color:rgba(221,235,255,.24);}
+    html[data-surface-tone="gray"] .btn-secondary,
+    html[data-surface-tone="black"] .btn-secondary {color:#edf3fc;background:rgba(var(--inner-rgb),var(--control-opacity));border-color:rgba(231,239,255,.23);}
+    html[data-surface-tone="gray"] .btn-secondary:hover:not(:disabled),
+    html[data-surface-tone="black"] .btn-secondary:hover:not(:disabled) {background:rgba(var(--inner-rgb),.92);}
+    html[data-surface-tone="gray"] .chat-message.user,
+    html[data-surface-tone="black"] .chat-message.user {background:rgba(68,91,132,var(--control-opacity));border:1px solid rgba(231,239,255,.2);}
+    html[data-surface-tone="gray"] .chat-message.model,
+    html[data-surface-tone="black"] .chat-message.model {background:rgba(var(--inner-rgb),calc(var(--control-opacity) * .66));border:1px solid rgba(231,239,255,.16);}
+    html[data-surface-tone="gray"] .markdown :not(pre)>code,
+    html[data-surface-tone="black"] .markdown :not(pre)>code {background:rgba(87,110,158,.43);color:#d1e0ff;}
+    html[data-surface-tone="gray"] .markdown blockquote,
+    html[data-surface-tone="black"] .markdown blockquote {background:rgba(var(--inner-rgb),.58);color:#e7effb;}
+    html[data-surface-tone="gray"] .response-header,
+    html[data-surface-tone="black"] .response-header,
+    html[data-surface-tone="gray"] .response-footer,
+    html[data-surface-tone="black"] .response-footer {border-color:rgba(231,239,255,.22);}
+    /* Floating settings window also responds to the color mode. */
+    html[data-surface-tone="gray"] .settings-panel,
+    html[data-surface-tone="black"] .settings-panel {
+      color:#edf4fd;background:rgba(24,35,53,.86);border-color:rgba(222,234,250,.29);
+      box-shadow:0 22px 70px rgba(2,9,22,.34),inset 0 1px 0 rgba(255,255,255,.13);
+    }
+    html[data-surface-tone="gray"] .settings-panel .setting-subtitle,
+    html[data-surface-tone="black"] .settings-panel .setting-subtitle,
+    html[data-surface-tone="gray"] .settings-panel .setting-heading,
+    html[data-surface-tone="black"] .settings-panel .setting-heading,
+    html[data-surface-tone="gray"] .settings-panel .setting-value,
+    html[data-surface-tone="black"] .settings-panel .setting-value,
+    html[data-surface-tone="gray"] .settings-panel .setting-description,
+    html[data-surface-tone="black"] .settings-panel .setting-description,
+    html[data-surface-tone="gray"] .settings-panel .setting-control-caption,
+    html[data-surface-tone="black"] .settings-panel .setting-control-caption,
+    html[data-surface-tone="gray"] .settings-panel .setting-note,
+    html[data-surface-tone="black"] .settings-panel .setting-note,
+    html[data-surface-tone="gray"] .settings-panel .settings-notice,
+    html[data-surface-tone="black"] .settings-panel .settings-notice,
+    html[data-surface-tone="gray"] .settings-panel .image-preview p,
+    html[data-surface-tone="black"] .settings-panel .image-preview p {color:#cad9e9;}
+    html[data-surface-tone="gray"] .settings-panel .settings-tab,
+    html[data-surface-tone="black"] .settings-panel .settings-tab {color:#bfcee0;}
+    html[data-surface-tone="gray"] .settings-panel .settings-tab[aria-selected="true"],
+    html[data-surface-tone="black"] .settings-panel .settings-tab[aria-selected="true"] {background:rgba(91,111,145,.6);color:#fff;border-color:rgba(222,234,250,.3);}
+    html[data-surface-tone="gray"] .settings-panel .setting-select,
+    html[data-surface-tone="black"] .settings-panel .setting-select {color:#f1f6ff;background:#34445d;border-color:rgba(226,237,252,.21);}
+    html[data-surface-tone="gray"] .settings-panel .tone-choice,
+    html[data-surface-tone="black"] .settings-panel .tone-choice {color:#eaf1fc;background:rgba(81,100,134,.43);border-color:rgba(230,239,251,.23);}
+    html[data-surface-tone="gray"] .settings-panel .tone-choice[aria-pressed="true"],
+    html[data-surface-tone="black"] .settings-panel .tone-choice[aria-pressed="true"] {background:rgba(107,130,169,.5);border-color:#9fb9f2;}
+    html[data-surface-tone="gray"] .settings-panel .preset-button,
+    html[data-surface-tone="black"] .settings-panel .preset-button,
+    html[data-surface-tone="gray"] .settings-panel .image-preview,
+    html[data-surface-tone="black"] .settings-panel .image-preview,
+    html[data-surface-tone="gray"] .settings-panel .setting-note,
+    html[data-surface-tone="black"] .settings-panel .setting-note {background:rgba(91,111,145,.33);color:#e0eaf7;border-color:rgba(222,234,250,.2);}
+    html[data-surface-tone="gray"] .settings-panel .preset-button[aria-pressed="true"],
+    html[data-surface-tone="black"] .settings-panel .preset-button[aria-pressed="true"] {background:rgba(115,136,174,.53);border-color:#9fb9f2;}
+    html[data-surface-tone="gray"] .settings-panel .close-settings,
+    html[data-surface-tone="black"] .settings-panel .close-settings {background:rgba(85,108,141,.5);color:#f3f8ff;border-color:rgba(226,237,252,.24);}
+    html[data-surface-tone="gray"] .settings-panel .setting-group,
+    html[data-surface-tone="black"] .settings-panel .setting-group,
+    html[data-surface-tone="gray"] .settings-panel .settings-tabs,
+    html[data-surface-tone="black"] .settings-panel .settings-tabs,
+    html[data-surface-tone="gray"] .settings-panel .settings-footer,
+    html[data-surface-tone="black"] .settings-panel .settings-footer {border-color:rgba(229,239,255,.17);}
   </style>
 </head>
 <body>
-  <main>
-    <h1>AI Study Assistant</h1>
-    <p>输入你的学习问题，获得学习辅助回答。</p>
+  <div id="wallpaper" aria-hidden="true"></div>
+  <div id="backgroundTint" aria-hidden="true"></div>
 
-    <textarea id="question" rows="4"
-      placeholder="例如：Python 的 for 循环是什么？"></textarea>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand"><span class="brand-mark">S</span><span>AI Study Assistant</span></div>
+        <div class="header-actions">
+          <span class="version">V0.2 · STUDIO PLUS</span>
+          <button id="dayNightButton" class="header-button day-night-button" type="button"
+                  onclick="toggleDayNight()" aria-label="切换到夜间模式">夜间模式</button>
+          <button id="settingsButton" class="header-button" type="button" aria-expanded="false" onclick="toggleSettings(true)"><span class="setting-symbol" aria-hidden="true">◈</span> 外观设置</button>
+        </div>
+      </div>
+    </header>
 
-    <button onclick="askQuestion()">发送问题</button>
+    <main>
+      <section class="intro">
+        <div class="eyebrow">AI LEARNING WORKSPACE</div>
+        <h1>把问题，学明白。</h1>
+        <p>快速获取答案，或通过循序互动真正理解知识。</p>
+      </section>
 
-    <div id="answer">回答会显示在这里。</div>
-  </main>
+      <div class="workspace">
+        <section class="panel composer" aria-label="问题输入">
+          <div class="panel-label">01 <span class="label-separator">/</span> QUESTION</div>
+          <h2 class="panel-title">开始一次学习</h2>
+          <p class="panel-description">选择回答方式，开始探索。</p>
+
+          <div class="field-heading">学习方式</div>
+          <div class="mode-switch" role="group" aria-label="学习模式">
+            <button id="quickModeButton" class="mode-button active" aria-pressed="true" type="button" onclick="switchMode('quick')">快速解答</button>
+            <button id="tutorModeButton" class="mode-button" aria-pressed="false" type="button" onclick="switchMode('tutor')">交互式教学</button>
+          </div>
+          <p id="modeDescription" class="mode-description">提炼要点与示例，快速得到答案。</p>
+
+          <div class="field-heading">快速开始</div>
+          <div class="suggestions">
+            <button class="suggestion" type="button" onclick="fillQuestion('用 Python 解释什么是列表，并举一个例子')">Python 列表</button>
+            <button class="suggestion" type="button" onclick="fillQuestion('什么是前端和后端？请通俗解释')">前端与后端</button>
+            <button class="suggestion" type="button" onclick="fillQuestion('解释 Python 的 for 循环，并举例说明')">for 循环</button>
+          </div>
+
+          <label class="field-heading" for="question">想了解什么？</label>
+          <textarea id="question" placeholder="例如：Python 列表和元组有什么区别？" maxlength="4000"></textarea>
+          <div class="input-hint"><kbd>Enter</kbd> 发送 <span aria-hidden="true">·</span> <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</div>
+          <div class="actions">
+            <button id="clearButton" class="btn btn-secondary" type="button" onclick="clearQuestion()">清空对话</button>
+            <button id="sendButton" class="btn btn-primary" type="button" onclick="askQuestion()">发送问题</button>
+          </div>
+        </section>
+
+        <section class="panel response-panel" aria-label="AI 回答">
+          <div class="response-header">
+            <div><div class="panel-label">02 <span class="label-separator">/</span> RESPONSE</div><h2 id="answerTitle" class="panel-title">AI 学习解答</h2></div>
+            <div class="status" role="status"><span id="statusDot" class="status-dot"></span><span id="statusText">等待提问</span></div>
+          </div>
+          <div id="responseContent" class="response-content">
+            <div id="answer" class="markdown" aria-live="polite"><p class="placeholder">准备好了。输入问题，开始你的下一次探索。</p></div>
+            <div id="conversation" class="conversation" aria-live="polite" hidden></div>
+          </div>
+          <div class="response-footer">
+            <span class="response-note">AI 生成内容仅供参考，请核对重要信息</span>
+            <button id="copyButton" class="btn btn-secondary" type="button" onclick="copyAnswer()" disabled>复制回答</button>
+          </div>
+        </section>
+      </div>
+      <footer class="footer"><span>AI Study Assistant <span class="footer-divider">/</span> Learning Workspace</span><span>Built with Python · FastAPI · Gemini</span></footer>
+    </main>
+  </div>
+
+
+  <!-- 磨砂玻璃悬浮设置面板；透明点击层只用于关闭，不覆盖画面 -->
+  <div id="settingsBackdrop" class="settings-backdrop" hidden onclick="toggleSettings(false)"></div>
+  <aside id="settingsPanel" class="settings-panel" role="dialog" aria-label="外观设置" aria-modal="false" hidden>
+    <header class="settings-top" id="floatingSettingsHandle">
+      <div><h2>外观设置</h2><p class="setting-subtitle">实时预览 · 点击标签切换</p></div>
+      <button class="close-settings" id="closeSettingsButton" type="button" aria-label="关闭设置" onclick="toggleSettings(false)">×</button>
+    </header>
+    <div class="settings-tabs" role="tablist" aria-label="外观设置分类">
+      <button class="settings-tab" id="tabBackground" type="button" role="tab" aria-selected="true" onclick="showSettingsTab('background')">背景</button>
+      <button class="settings-tab" id="tabGlass" type="button" role="tab" aria-selected="false" onclick="showSettingsTab('glass')">玻璃质感</button>
+      <button class="settings-tab" id="tabReading" type="button" role="tab" aria-selected="false" onclick="showSettingsTab('reading')">文字与颜色</button>
+    </div>
+    <div class="settings-scroll">
+      <div class="settings-view" id="viewBackground">
+        <section class="setting-group">
+          <h3>背景图片</h3>
+          <div class="settings-buttons">
+            <label class="btn btn-secondary file-label" for="backgroundUpload">选择本地图片</label>
+            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/jpeg,image/png,image/webp" aria-label="上传背景图片">
+            <button class="btn btn-secondary" type="button" onclick="removeBackground()">移除图片</button>
+          </div>
+          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。可上传 JPG、PNG、WebP。</p></div>
+          <div class="setting-row" style="margin-top:12px">
+            <div class="setting-heading"><label for="wallpaperResolution">高清适配</label><span class="setting-value">原图始终保留</span></div>
+            <select class="setting-select" id="wallpaperResolution" aria-label="背景图片高清适配模式">
+              <option value="auto">原图优先 · 自动清晰显示</option>
+              <option value="1080">1080p · 高质量缩放</option>
+              <option value="4k">4K · 高质量缩放</option>
+            </select>
+            <p class="setting-description" id="wallpaperResolutionNote">默认保留原图像素，背景铺满时自动适配屏幕。切换档位后会显示实际尺寸。</p>
+          </div>
+        </section>
+        <section class="setting-group">
+          <h3>背景效果</h3>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperOpacity">图片可见度</label><span class="setting-value" id="wallpaperOpacityValue"></span></div><input id="wallpaperOpacity" type="range" min="20" max="100" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperBlur">背景柔和程度</label><span class="setting-value" id="wallpaperBlurValue"></span></div><input id="wallpaperBlur" type="range" min="0" max="16" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperBrightness">图片亮度</label><span class="setting-value" id="wallpaperBrightnessValue"></span></div><input id="wallpaperBrightness" type="range" min="55" max="145" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPositionX">图片横向位置</label><span class="setting-value" id="wallpaperPositionXValue"></span></div><input id="wallpaperPositionX" type="range" min="0" max="100" step="1"><div class="setting-control-caption">向左或向右调整裁切焦点，适合人物和风景照片。</div></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPosition">图片垂直位置</label><span class="setting-value" id="wallpaperPositionValue"></span></div><input id="wallpaperPosition" type="range" min="0" max="100" step="1"></div>
+          <p class="setting-description">横向、纵向位置控制背景裁切；当某个方向没有多余图片可裁切时，该方向的滑块可能看不出变化。1080p／4K 是像素缩放，不会创造真实细节。</p>
+        </section>
+      </div>
+      <div class="settings-view" id="viewGlass" hidden>
+        <section class="setting-group">
+          <h3>日夜模式与卡片底色</h3>
+          <div class="tone-grid" role="group" aria-label="界面与卡片配色">
+            <button class="tone-choice" type="button" data-tone="white" aria-pressed="true" onclick="chooseCardTone('white')">
+              <span class="tone-sample tone-white" aria-hidden="true"></span><span>日间白</span>
+            </button>
+            <button class="tone-choice" type="button" data-tone="gray" aria-pressed="false" onclick="chooseCardTone('gray')">
+              <span class="tone-sample tone-gray" aria-hidden="true"></span><span>雾灰</span>
+            </button>
+            <button class="tone-choice" type="button" data-tone="black" aria-pressed="false" onclick="chooseCardTone('black')">
+              <span class="tone-sample tone-black" aria-hidden="true"></span><span>夜间黑</span>
+            </button>
+          </div>
+          <p class="setting-description">点击顶部「夜间模式」也能一键切换白色与黑色。雾灰更柔和，适合照片背景。切换时会自动使用易读的文字颜色，你仍可手动修改。</p>
+        </section>
+        <section class="setting-group">
+          <h3>顶部导航栏</h3>
+          <div class="setting-row">
+            <div class="setting-heading"><label for="topbarOpacity">导航栏不透明度</label><span class="setting-value" id="topbarOpacityValue"></span></div>
+            <input id="topbarOpacity" type="range" min="12" max="100" step="1">
+            <div class="setting-control-caption">与左右主卡片分别调节；导航栏的白、灰、黑颜色跟随上面的主题。</div>
+          </div>
+        </section>
+        <section class="setting-group">
+          <h3>卡片的轻透感</h3>
+          <div class="preset-grid" role="group" aria-label="玻璃质感预设">
+            <button class="preset-button" type="button" data-glass-preset="airy" aria-pressed="false" onclick="useGlassPreset('airy')"><span class="preset-preview" aria-hidden="true"></span>清透</button>
+            <button class="preset-button" type="button" data-glass-preset="balanced" aria-pressed="false" onclick="useGlassPreset('balanced')"><span class="preset-preview" aria-hidden="true"></span>均衡</button>
+            <button class="preset-button" type="button" data-glass-preset="clear" aria-pressed="false" onclick="useGlassPreset('clear')"><span class="preset-preview" aria-hidden="true"></span>清晰</button>
+          </div>
+          <p class="setting-description">先选一套风格，再用下面的滑块细调。</p>
+          <div class="setting-row"><div class="setting-heading"><label for="cardOpacity">左右主卡片不透明度</label><span class="setting-value" id="cardOpacityValue"></span></div><input id="cardOpacity" type="range" min="28" max="96" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="controlOpacity">小卡片与输入框不透明度</label><span class="setting-value" id="controlOpacityValue"></span></div><input id="controlOpacity" type="range" min="30" max="100" step="1"><div class="setting-control-caption">单独控制模式按钮、示例问题、输入框与聊天气泡；文字始终保持原本清晰度。</div></div>
+          <div class="setting-row"><div class="setting-heading"><label for="glassBlur">玻璃模糊程度</label><span class="setting-value" id="glassBlurValue"></span></div><input id="glassBlur" type="range" min="0" max="34" step="1"></div>
+          <div class="setting-note">降低透明度滑块的百分比能看到更多背景；但背景细节太复杂时，建议主卡片至少 50%，小卡片至少 65%，保证文字易读。</div>
+        </section>
+        <section class="setting-group">
+          <h3>页面底色</h3>
+          <select class="setting-select" id="pageTheme" aria-label="页面底色">
+            <option value="cool">清爽浅灰</option>
+            <option value="white">纯净白</option>
+            <option value="warm">柔和米白</option>
+            <option value="mist">浅雾蓝</option>
+          </select>
+          <p class="setting-description">日间可选择柔和底色；雾灰与夜间会自动使用适合的深色渐变。上传的照片始终保留。</p>
+        </section>
+      </div>
+      <div class="settings-view" id="viewReading" hidden>
+        <section class="setting-group">
+          <h3>颜色与阅读</h3>
+          <div class="setting-row"><div class="setting-heading"><label for="fontFamily">界面字体风格</label></div>
+            <select class="setting-select" id="fontFamily">
+              <option value="modern">现代简洁</option>
+              <option value="soft">柔和圆润</option>
+              <option value="editorial">书卷感衬线</option>
+            </select>
+            <div class="setting-control-caption">使用系统已安装的字体，无需下载字体文件。</div>
+          </div>
+          <div class="setting-row"><div class="setting-heading"><label for="layoutWidth">内容宽度</label></div>
+            <select class="setting-select" id="layoutWidth"><option value="standard">舒适居中</option><option value="wide">宽屏舒展</option></select>
+          </div>
+          <div class="color-row"><label for="fontColor">主要文字颜色</label><input id="fontColor" type="color"></div>
+          <div class="color-row"><label for="accentColor">按钮及强调色</label><input id="accentColor" type="color"></div>
+          <div class="accent-swatches" role="group" aria-label="推荐强调色">
+            <button class="swatch-button" aria-label="深海蓝" title="深海蓝" type="button" data-accent="#4262c8" style="background:#4262c8" onclick="useAccent('#4262c8')"></button>
+            <button class="swatch-button" aria-label="雾紫色" title="雾紫色" type="button" data-accent="#7968af" style="background:#7968af" onclick="useAccent('#7968af')"></button>
+            <button class="swatch-button" aria-label="鼠尾草绿" title="鼠尾草绿" type="button" data-accent="#477f73" style="background:#477f73" onclick="useAccent('#477f73')"></button>
+            <button class="swatch-button" aria-label="柔和茶棕" title="柔和茶棕" type="button" data-accent="#a47555" style="background:#a47555" onclick="useAccent('#a47555')"></button>
+          </div>
+          <div class="setting-row" style="margin-top:16px"><div class="setting-heading"><label for="fontSize">回答文字大小</label><span class="setting-value" id="fontSizeValue"></span></div><input id="fontSize" type="range" min="85" max="135" step="5"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="readingLineHeight">回答行距</label><span class="setting-value" id="readingLineHeightValue"></span></div><input id="readingLineHeight" type="range" min="150" max="220" step="5"></div>
+          <p class="setting-description">先选舒适的字体与行距，再调整颜色。花纹背景下推荐「均衡」或「清晰」玻璃预设，保持文字对比度。</p>
+        </section>
+        <section class="setting-group"><div class="setting-note">背景图片与这些设置仅保存在当前浏览器，不会上传到服务器或发送给 Gemini。对话历史仍然只在本次页面中暂存。</div></section>
+      </div>
+    </div>
+    <div class="settings-footer"><button class="btn btn-secondary" type="button" onclick="restoreDefaults()">恢复默认</button><button class="btn btn-primary" type="button" onclick="toggleSettings(false)">完成设置</button></div>
+    <p id="settingsNotice" class="settings-notice" role="status"></p>
+  </aside>
 
   <script>
+    // 学习对话逻辑：与现有 web/app.py 中的 quick / tutor 接口兼容
+    const questionInput = document.getElementById("question");
+    const answer = document.getElementById("answer");
+    const conversation = document.getElementById("conversation");
+    const responseContent = document.getElementById("responseContent");
+    const sendButton = document.getElementById("sendButton");
+    const clearButton = document.getElementById("clearButton");
+    const copyButton = document.getElementById("copyButton");
+    const quickModeButton = document.getElementById("quickModeButton");
+    const tutorModeButton = document.getElementById("tutorModeButton");
+    const modeDescription = document.getElementById("modeDescription");
+    const answerTitle = document.getElementById("answerTitle");
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    let currentMode = "quick";
+    let chatHistory = [];
+    let currentAnswer = "";
+    let isLoading = false;
+
+    function setStatus(message, state = "") {
+      statusText.textContent = message;
+      statusDot.className = "status-dot";
+      if (state) statusDot.classList.add(state);
+    }
+    function setLoading(loading) {
+      isLoading = loading;
+      sendButton.disabled = loading;
+      clearButton.disabled = loading;
+      quickModeButton.disabled = loading;
+      tutorModeButton.disabled = loading;
+      copyButton.disabled = loading || !currentAnswer;
+      sendButton.textContent = loading ? "正在思考..." : "发送问题";
+    }
+    function fillQuestion(text) {
+      if (isLoading) return;
+      questionInput.value = text;
+      questionInput.focus();
+    }
+    function showPlaceholder(container, message) {
+      container.replaceChildren();
+      const p = document.createElement("p");
+      p.className = "placeholder";
+      p.textContent = message;
+      container.appendChild(p);
+    }
+    function resetConversation() {
+      chatHistory = [];
+      currentAnswer = "";
+      copyButton.disabled = true;
+      showPlaceholder(answer, "准备好了。输入问题，开始你的下一次探索。");
+      showPlaceholder(conversation, "输入一个问题，开始交互式学习。");
+      setStatus("等待提问");
+      responseContent.scrollTop = 0;
+    }
+    function switchMode(mode) {
+      if (isLoading || mode === currentMode) return;
+      currentMode = mode;
+      const isQuick = mode === "quick";
+      quickModeButton.classList.toggle("active", isQuick);
+      tutorModeButton.classList.toggle("active", !isQuick);
+      quickModeButton.setAttribute("aria-pressed", String(isQuick));
+      tutorModeButton.setAttribute("aria-pressed", String(!isQuick));
+      answer.hidden = !isQuick;
+      conversation.hidden = isQuick;
+      answerTitle.textContent = isQuick ? "AI 学习解答" : "AI 互动课堂";
+      modeDescription.textContent = isQuick
+        ? "提炼要点与示例，快速得到答案。"
+        : "分步讲解与追问，结合上下文继续学习。";
+      questionInput.value = "";
+      resetConversation();
+      questionInput.focus();
+    }
+    function clearQuestion() {
+      if (isLoading) return;
+      questionInput.value = "";
+      resetConversation();
+      questionInput.focus();
+    }
+    // 只创建安全 DOM 节点，不执行 AI 输出中的 HTML
+    function renderInline(parent, text) {
+      const pattern = /(\*\*([\s\S]+?)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          parent.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        }
+        let element;
+        if (match[2] !== undefined) {
+          element = document.createElement("strong");
+          element.textContent = match[2];
+        } else if (match[3] !== undefined) {
+          element = document.createElement("code");
+          element.textContent = match[3];
+        } else {
+          element = document.createElement("a");
+          element.textContent = match[4];
+          element.href = match[5];
+          element.target = "_blank";
+          element.rel = "noopener noreferrer";
+        }
+        parent.appendChild(element);
+        lastIndex = pattern.lastIndex;
+      }
+      if (lastIndex < text.length) parent.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    function renderMarkdown(text, container) {
+      container.replaceChildren();
+      const lines = String(text).replace(/\r\n/g, "\n").split("\n");
+      let inCodeBlock = false, codeLines = [], paragraphLines = [];
+      let currentList = null, currentListType = "";
+      function flushParagraph() {
+        if (!paragraphLines.length) return;
+        const p = document.createElement("p");
+        renderInline(p, paragraphLines.join("\n"));
+        container.appendChild(p);
+        paragraphLines = [];
+      }
+      function resetList() { currentList = null; currentListType = ""; }
+      function addListItem(type, content) {
+        flushParagraph();
+        if (!currentList || currentListType !== type) {
+          currentList = document.createElement(type);
+          container.appendChild(currentList);
+          currentListType = type;
+        }
+        const li = document.createElement("li");
+        renderInline(li, content);
+        currentList.appendChild(li);
+      }
+      function addCodeBlock() {
+        const pre = document.createElement("pre");
+        const code = document.createElement("code");
+        code.textContent = codeLines.join("\n");
+        pre.appendChild(code);
+        container.appendChild(pre);
+        codeLines = [];
+      }
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (/^```[\w+-]*\s*$/.test(trimmed)) {
+          flushParagraph(); resetList();
+          if (inCodeBlock) { addCodeBlock(); inCodeBlock = false; }
+          else { inCodeBlock = true; codeLines = []; }
+          continue;
+        }
+        if (inCodeBlock) { codeLines.push(line); continue; }
+        if (!trimmed) { flushParagraph(); resetList(); continue; }
+        const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+        if (heading) {
+          flushParagraph(); resetList();
+          const h = document.createElement("h" + heading[1].length);
+          renderInline(h, heading[2]);
+          container.appendChild(h); continue;
+        }
+        const bullet = trimmed.match(/^[-*+]\s+(.+)$/);
+        if (bullet) { addListItem("ul", bullet[1]); continue; }
+        const numbered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+        if (numbered) { addListItem("ol", numbered[1]); continue; }
+        if (trimmed.startsWith("> ")) {
+          flushParagraph(); resetList();
+          const quote = document.createElement("blockquote");
+          renderInline(quote, trimmed.slice(2));
+          container.appendChild(quote); continue;
+        }
+        resetList(); paragraphLines.push(line);
+      }
+      flushParagraph();
+      if (inCodeBlock) addCodeBlock();
+    }
+    function addChatMessage(role, text, pending = false) {
+      const placeholder = conversation.querySelector(".placeholder");
+      if (placeholder) conversation.replaceChildren();
+      const bubble = document.createElement("div");
+      bubble.className = "chat-message " + role;
+      const label = document.createElement("div");
+      label.className = "message-label";
+      label.textContent = role === "user" ? "你" : "AI 导师";
+      const body = document.createElement("div");
+      body.className = "message-body";
+      if (role === "model") {
+        body.classList.add("markdown");
+        if (pending) body.textContent = text;
+        else renderMarkdown(text, body);
+      } else {
+        body.textContent = text;
+      }
+      bubble.appendChild(label);
+      bubble.appendChild(body);
+      conversation.appendChild(bubble);
+      responseContent.scrollTop = responseContent.scrollHeight;
+      return body;
+    }
     async function askQuestion() {
-      const question = document.getElementById("question").value;
-      const answer = document.getElementById("answer");
-
-      answer.textContent = "正在处理问题……";
-
+      if (isLoading) return;
+      const question = questionInput.value.trim();
+      if (!question) { setStatus("请先输入问题", "error"); questionInput.focus(); return; }
+      if (question.length > 4000) { setStatus("问题不能超过 4000 字", "error"); return; }
+      currentAnswer = "";
+      let modelBody = null;
+      if (currentMode === "tutor") {
+        addChatMessage("user", question);
+        modelBody = addChatMessage("model", "正在准备下一步教学内容……", true);
+      } else {
+        showPlaceholder(answer, "正在整理回答，请稍候……");
+        responseContent.scrollTop = 0;
+      }
+      setStatus("正在生成回答", "loading");
+      setLoading(true);
       try {
         const response = await fetch("/api/ask", {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({question: question})
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            mode: currentMode,
+            history: currentMode === "tutor" ? chatHistory.slice(-12) : []
+          })
         });
-
-        if (!response.ok) {
-          throw new Error("请求失败：" + response.status);
-        }
-
+        if (!response.ok) throw new Error("HTTP 状态码：" + response.status);
         const data = await response.json();
-        answer.textContent = data.answer;
+        if (typeof data.answer !== "string") throw new Error("服务器返回的数据格式不正确");
+        if (data.ok === false) {
+          if (currentMode === "tutor") modelBody.textContent = data.answer;
+          else showPlaceholder(answer, data.answer);
+          setStatus("请求出现问题", "error");
+          return;
+        }
+        currentAnswer = data.answer.trim() || "模型没有返回文本内容。";
+        if (currentMode === "tutor") {
+          renderMarkdown(currentAnswer, modelBody);
+          chatHistory.push({ role: "user", text: question }, { role: "model", text: currentAnswer });
+          if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+          responseContent.scrollTop = responseContent.scrollHeight;
+        } else {
+          renderMarkdown(currentAnswer, answer);
+          responseContent.scrollTop = 0;
+        }
+        setStatus("回答已生成", "success");
+        questionInput.value = "";
+        questionInput.focus();
       } catch (error) {
-        answer.textContent = "请求失败：" + error.message;
+        currentAnswer = "";
+        const message = "请求失败：" + error.message;
+        if (currentMode === "tutor" && modelBody) modelBody.textContent = message;
+        else showPlaceholder(answer, message);
+        setStatus("请求失败", "error");
+      } finally {
+        setLoading(false);
       }
     }
+    async function copyAnswer() {
+      if (!currentAnswer || isLoading) return;
+      try {
+        await navigator.clipboard.writeText(currentAnswer);
+        setStatus("回答已复制", "success");
+      } catch (error) {
+        setStatus("复制失败，请手动选择文字", "error");
+      }
+    }
+    questionInput.addEventListener("keydown", function(event) {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
+        event.preventDefault();
+        askQuestion();
+      }
+    });
+    resetConversation();
+
+
+    // 外观设置：颜色与参数用 localStorage，原始背景图片放浏览器 IndexedDB。
+    const defaultSettings = {
+      wallpaperOpacity: 98,
+      wallpaperBlur: 0,
+      wallpaperBrightness: 100,
+      wallpaperPosition: 50,
+      wallpaperPositionX: 50,
+      wallpaperResolution: "auto",
+      pageTheme: "cool",
+      fontColor: "#172132",
+      accentColor: "#4262c8",
+      cardOpacity: 64,
+      topbarOpacity: 53,
+      cardTone: "white",
+      controlOpacity: 78,
+      glassBlur: 12,
+      fontSize: 100,
+      fontFamily: "modern",
+      layoutWidth: "standard",
+      readingLineHeight: 185
+    };
+    const themeColors = {cool:"#eaf0f7",white:"#ffffff",warm:"#f8f1e8",mist:"#e4eef8"};
+    // cardTone uses three preview buttons rather than a select/range input.
+    const settingIds = Object.keys(defaultSettings).filter(id => id !== "cardTone");
+    let preferences = {...defaultSettings};
+    let wallpaperObjectUrl = null;
+    let originalBackground = null;
+    let processingSerial = 0;
+    const settingsPanel = document.getElementById("settingsPanel");
+    const settingsBackdrop = document.getElementById("settingsBackdrop");
+    const settingsButton = document.getElementById("settingsButton");
+    const imageState = document.getElementById("imageState");
+    const settingsNotice = document.getElementById("settingsNotice");
+    let activeSettingsTab = "background";
+
+    function showSettingsTab(tab) {
+      activeSettingsTab = tab;
+      const ids = {background:"Background", glass:"Glass", reading:"Reading"};
+      for (const [key, suffix] of Object.entries(ids)) {
+        document.getElementById("view"+suffix).hidden = key !== tab;
+        document.getElementById("tab"+suffix).setAttribute("aria-selected",String(key === tab));
+      }
+    }
+    function toggleSettings(open) {
+      settingsPanel.hidden = !open;
+      settingsBackdrop.hidden = !open;
+      settingsButton.setAttribute("aria-expanded",String(open));
+      if (open) document.getElementById("closeSettingsButton").focus();
+      else settingsButton.focus();
+    }
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !settingsPanel.hidden) toggleSettings(false);
+    });
+
+    // PC 端允许拖动小窗顶部；移动到屏幕外时会自动限制位置。
+    const floatHandle = document.getElementById("floatingSettingsHandle");
+    let dragInfo = null;
+    floatHandle.addEventListener("pointerdown", event => {
+      if (window.matchMedia("(max-width: 560px)").matches || event.target.closest("button")) return;
+      if (!event.isPrimary || event.button !== 0) return;
+      const rect = settingsPanel.getBoundingClientRect();
+      dragInfo = {pointerId:event.pointerId, startX:event.clientX, startY:event.clientY, left:rect.left, top:rect.top};
+      floatHandle.setPointerCapture(event.pointerId);
+    });
+    floatHandle.addEventListener("pointermove", event => {
+      if (!dragInfo || event.pointerId !== dragInfo.pointerId) return;
+      const maxX = Math.max(8,innerWidth-settingsPanel.offsetWidth-8);
+      const maxY = Math.max(8,innerHeight-settingsPanel.offsetHeight-8);
+      const x = Math.max(8,Math.min(maxX,dragInfo.left+event.clientX-dragInfo.startX));
+      const y = Math.max(8,Math.min(maxY,dragInfo.top+event.clientY-dragInfo.startY));
+      settingsPanel.style.left = x+"px";
+      settingsPanel.style.top = y+"px";
+      settingsPanel.style.right = "auto";
+    });
+    for (const type of ["pointerup","pointercancel"]) {
+      floatHandle.addEventListener(type, () => {dragInfo=null;});
+    }
+    window.addEventListener("resize", () => {
+      settingsPanel.style.left="";
+      settingsPanel.style.right="";
+      settingsPanel.style.top="";
+    });
+
+    function settingText(id,value) {
+      if (["wallpaperBlur","glassBlur"].includes(id)) return value+" px";
+      return value+"%";
+    }
+    function applyPreferences() {
+      const page = document.documentElement;
+      const root = page.style;
+      const tone = ["white", "gray", "black"].includes(preferences.cardTone)
+        ? preferences.cardTone : "white";
+      preferences.cardTone = tone;
+      page.dataset.surfaceTone = tone;
+      const darkSurface = tone !== "white";
+      // Day/night changes background and UI contrast while keeping uploaded photos.
+      root.setProperty("--tone-rgb", tone === "black" ? "17,26,40" : tone === "gray" ? "70,81,99" : "255,255,255");
+      root.setProperty("--inner-rgb", tone === "black" ? "36,49,70" : tone === "gray" ? "95,108,129" : "255,255,255");
+      root.setProperty("--topbar-opacity", preferences.topbarOpacity / 100);
+      root.setProperty("--muted", darkSurface ? "#c1cfdf" : "#627087");
+      // With no photo, night mode gets a true dark wallpaper; an uploaded photo stays untouched.
+      const wallpaper = document.getElementById("wallpaper");
+      if (!wallpaperObjectUrl) {
+        wallpaper.style.backgroundImage = tone === "black"
+          ? "radial-gradient(ellipse at 17% 15%, #33455e, transparent 52%), radial-gradient(ellipse at 85% 80%, #293348, transparent 50%), linear-gradient(135deg, #172435, #0b1422)"
+          : tone === "gray"
+            ? "radial-gradient(ellipse at 17% 15%, #8d9bad, transparent 52%), radial-gradient(ellipse at 85% 80%, #65748a, transparent 50%), linear-gradient(135deg, #627087, #404e62)"
+            : "";
+      }
+      document.getElementById("dayNightButton").textContent = darkSurface ? "日间模式" : "夜间模式";
+      document.getElementById("dayNightButton").setAttribute("aria-label", darkSurface ? "切换到日间模式" : "切换到夜间模式");
+      document.querySelectorAll("[data-tone]").forEach(button =>
+        button.setAttribute("aria-pressed", String(button.dataset.tone === tone))
+      );
+      root.setProperty("--wallpaper-opacity",preferences.wallpaperOpacity/100);
+      root.setProperty("--wallpaper-blur",preferences.wallpaperBlur+"px");
+      root.setProperty("--wallpaper-brightness",preferences.wallpaperBrightness/100);
+      root.setProperty("--wallpaper-position-x",preferences.wallpaperPositionX+"%");
+      root.setProperty("--wallpaper-position-y",preferences.wallpaperPosition+"%");
+      root.setProperty("--page-color", tone === "white"
+        ? (themeColors[preferences.pageTheme] || themeColors.cool)
+        : (tone === "gray" ? "#526075" : "#0d1728"));
+      root.setProperty("--text-color",preferences.fontColor);
+      root.setProperty("--accent",preferences.accentColor);
+      root.setProperty("--card-opacity",preferences.cardOpacity/100);
+      root.setProperty("--control-opacity",preferences.controlOpacity/100);
+      root.setProperty("--glass-blur",preferences.glassBlur+"px");
+      root.setProperty("--font-scale",preferences.fontSize/100);
+      root.setProperty("--reading-leading",preferences.readingLineHeight/100);
+      const fonts = {
+        modern:'"Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif',
+        soft:'"Trebuchet MS", "Arial Rounded MT Bold", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif',
+        editorial:'Georgia, "Songti SC", "SimSun", serif'
+      };
+      root.setProperty("--ui-font-stack",fonts[preferences.fontFamily] || fonts.modern);
+      root.setProperty("--page-max-width",preferences.layoutWidth === "wide" ? "1380px" : "1190px");
+      document.querySelectorAll("[data-glass-preset]").forEach(button => {
+        const presets = {airy:[35,9],balanced:[64,12],clear:[87,19]};
+        const values = presets[button.dataset.glassPreset];
+        button.setAttribute("aria-pressed",String(values[0] === preferences.cardOpacity && values[1] === preferences.glassBlur));
+      });
+      document.querySelectorAll("[data-accent]").forEach(button => button.setAttribute("aria-pressed",String(button.dataset.accent === preferences.accentColor)));
+      for (const id of settingIds) {
+        const input = document.getElementById(id);
+        input.value = preferences[id];
+        const value = document.getElementById(id+"Value");
+        if (value) value.textContent = settingText(id,preferences[id]);
+      }
+    }
+    function chooseCardTone(tone) {
+      if (!["white", "gray", "black"].includes(tone)) return;
+      preferences.cardTone = tone;
+      // Night and graphite need light foreground text for legibility.
+      preferences.fontColor = tone === "white" ? "#172132" : "#f2f6fd";
+      applyPreferences();
+      savePreferences();
+    }
+    function toggleDayNight() {
+      chooseCardTone(preferences.cardTone === "white" ? "black" : "white");
+    }
+    function useGlassPreset(name) {
+      const presets = {airy:{cardOpacity:35,glassBlur:9}, balanced:{cardOpacity:64,glassBlur:12},clear:{cardOpacity:87,glassBlur:19}};
+      if (!presets[name]) return;
+      Object.assign(preferences,presets[name]);
+      applyPreferences(); savePreferences();
+    }
+    function useAccent(hex) {
+      preferences.accentColor = hex;
+      applyPreferences(); savePreferences();
+    }
+    function savePreferences() {
+      try { localStorage.setItem("ai_study_ui_prefs_v2",JSON.stringify(preferences)); }
+      catch { settingsNotice.textContent="当前浏览器无法保存设置，刷新后可能恢复默认。"; }
+    }
+    function updatePreference(id,value) {
+      preferences[id] = ["pageTheme","fontColor","accentColor","wallpaperResolution","fontFamily","layoutWidth"].includes(id)?value:Number(value);
+      applyPreferences(); savePreferences();
+    }
+    for (const id of settingIds) {
+      const control = document.getElementById(id);
+      control.addEventListener("input", event => updatePreference(id,event.target.value));
+      if (control.tagName === "SELECT") control.addEventListener("change",event=>updatePreference(id,event.target.value));
+    }
+    // 自动迁移上一个网页版本的轻量设置；旧图片会尽力迁入 IndexedDB。
+    let legacyBackground = "";
+    try {
+      const current = JSON.parse(localStorage.getItem("ai_study_ui_prefs_v2")||"null");
+      const previous = JSON.parse(localStorage.getItem("ai_study_ui_prefs_v1")||"null");
+      const older = JSON.parse(localStorage.getItem("ai-study-ui-settings")||"null");
+      const saved = current || previous || older;
+      if (older && !current && !previous) {
+        legacyBackground = typeof older.bgImage === "string" && older.bgImage.startsWith("data:image/") ? older.bgImage : "";
+        // 不同历史版本的设置字段名称不完全相同，只迁移有把握的项目
+        if (Number.isFinite(Number(older.panelOpacity))) preferences.cardOpacity = Number(older.panelOpacity);
+        if (Number.isFinite(Number(older.panelBlur))) preferences.glassBlur = Number(older.panelBlur);
+        if (/^#[0-9a-fA-F]{6}$/.test(older.textColor||"")) preferences.fontColor = older.textColor;
+        if (/^#[0-9a-fA-F]{6}$/.test(older.accentColor||"")) preferences.accentColor = older.accentColor;
+      } else if(saved) {
+        for(const id of settingIds) if(saved[id] !== undefined) preferences[id]=saved[id];
+      }
+      for (const id of settingIds) {
+        const control = document.getElementById(id);
+        const value = preferences[id];
+        if (control.type === "range") {
+          const n=Number(value);
+          preferences[id]=Number.isFinite(n)?Math.min(Number(control.max),Math.max(Number(control.min),n)):defaultSettings[id];
+        } else if (control.type === "color") {
+          if(!/^#[0-9a-fA-F]{6}$/.test(String(value))) preferences[id]=defaultSettings[id];
+        } else if (control.tagName === "SELECT") {
+          if(![...control.options].some(o=>o.value===value)) preferences[id]=defaultSettings[id];
+        }
+      }
+    } catch {preferences={...defaultSettings};}
+    applyPreferences();
+
+    function openImageDatabase() {
+      return new Promise((resolve,reject)=>{
+        if (!window.indexedDB) return reject(new Error("此浏览器不支持图片保存"));
+        const request=indexedDB.open("ai_study_personalization",1);
+        request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains("images")) request.result.createObjectStore("images");};
+        request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error||new Error("数据库打开失败"));
+      });
+    }
+    async function storeBackground(blob) {
+      const db=await openImageDatabase();
+      try {await new Promise((resolve,reject)=>{
+        const tx=db.transaction("images","readwrite");
+        tx.objectStore("images").put(blob,"background");
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+      });} finally{db.close();}
+    }
+    async function readBackground() {
+      const db=await openImageDatabase();
+      try {return await new Promise((resolve,reject)=>{
+        const r=db.transaction("images","readonly").objectStore("images").get("background");
+        r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);
+      });} finally{db.close();}
+    }
+    async function deleteBackground() {
+      const db=await openImageDatabase();
+      try {await new Promise((resolve,reject)=>{
+        const tx=db.transaction("images","readwrite");
+        tx.objectStore("images").delete("background");
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+      });} finally{db.close();}
+    }
+    // Store untouched source in IndexedDB. Preview is generated in memory as needed.
+    async function prepareBackground(blob) {
+      if (!blob) return;
+      const serial = ++processingSerial;
+      const info = document.getElementById("wallpaperResolutionNote");
+      const mode = preferences.wallpaperResolution;
+      info.textContent = "正在分析图片分辨率…";
+      let bitmap;
+      try {
+        bitmap = await createImageBitmap(blob);
+        const w = bitmap.width, h = bitmap.height;
+        let result = blob, outW = w, outH = h;
+        if (mode !== "auto") {
+          const maxW = mode === "4k" ? 3840 : 1920;
+          const maxH = mode === "4k" ? 2160 : 1080;
+          const limitW = w >= h ? maxW : maxH;
+          const limitH = w >= h ? maxH : maxW;
+          const scale = Math.min(limitW / w, limitH / h);
+          outW = Math.max(1, Math.round(w * scale));
+          outH = Math.max(1, Math.round(h * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = outW;
+          canvas.height = outH;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("此浏览器无法处理图片");
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(bitmap, 0, 0, outW, outH);
+          result = await new Promise((resolve, reject) => {
+            canvas.toBlob(
+              value => value ? resolve(value) : reject(new Error("图片转换失败")),
+              "image/webp", 0.96
+            );
+          });
+        }
+        if (serial !== processingSerial) return;
+        displayBackground(result);
+        const sizeChanged = outW > w || outH > h;
+        const output = `${outW} × ${outH}`;
+        const source = `${w} × ${h}`;
+        info.textContent = mode === "auto"
+          ? `原图 ${source} 像素 · 保留原始质量，自动铺满屏幕。`
+          : `原图 ${source} → 适配 ${output} 像素。${sizeChanged ? "放大像素不会产生新的真实细节。" : "已高质量缩放。"}`;
+        imageState.textContent = `背景已加载 · 当前显示 ${output} 像素`;
+      } catch (error) {
+        if (serial === processingSerial) {
+          displayBackground(blob);
+          info.textContent = `无法完成高清处理，已使用原图。${error.message || ""}`;
+        }
+      } finally {
+        if (bitmap) bitmap.close();
+      }
+    }
+    document.getElementById("wallpaperResolution").addEventListener("change", () => {
+      if (originalBackground) prepareBackground(originalBackground);
+    });
+
+    function displayBackground(blob) {
+      if (wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
+      wallpaperObjectUrl=URL.createObjectURL(blob);
+      document.getElementById("wallpaper").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
+      document.getElementById("imageThumbnail").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
+      imageState.textContent="已加载自定义背景 · 调节下方滑块预览";
+    }
+    async function removeBackground() {
+      ++processingSerial;
+      originalBackground = null;
+      document.getElementById("wallpaperResolutionNote").textContent =
+        "选择图片后会显示实际像素尺寸。原图不会因切换档位而丢失。";
+      if(wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
+      wallpaperObjectUrl=null;
+      document.getElementById("wallpaper").style.backgroundImage="";
+      document.getElementById("imageThumbnail").style.backgroundImage="";
+      applyPreferences(); // restore the correct day/gray/night fallback once the photo is removed
+      document.getElementById("backgroundUpload").value="";
+      imageState.textContent="未使用背景图片 · 当前显示默认渐变";
+      try {await deleteBackground();settingsNotice.textContent="背景图片已移除。";}
+      catch {settingsNotice.textContent="背景已在当前页面移除，但浏览器存储可能未清除。";}
+    }
+    document.getElementById("backgroundUpload").addEventListener("change",async event=>{
+      const file=event.target.files[0];if(!file)return;
+      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){settingsNotice.textContent="请使用 JPG、PNG 或 WebP 格式。";return;}
+      if(file.size>15*1024*1024){settingsNotice.textContent="图片超过 15 MB，请选择较小的图片。";return;}
+      try {
+        originalBackground = file;
+        await prepareBackground(file);
+        try {await storeBackground(file);settingsNotice.textContent="背景已保存，可在当前浏览器中恢复。";}
+        catch {settingsNotice.textContent="背景已显示，但保存失败，刷新后可能丢失。";}
+      } catch {settingsNotice.textContent="无法打开这张图片，请更换文件。";}
+    });
+    async function restoreDefaults(){preferences={...defaultSettings};applyPreferences();savePreferences();await removeBackground();settingsNotice.textContent="已恢复默认外观。";}
+    readBackground().then(async blob=>{
+      if(blob){originalBackground=blob;await prepareBackground(blob);return;}
+      if(legacyBackground){
+        try {const response=await fetch(legacyBackground);const image=await response.blob();originalBackground=image;await prepareBackground(image);await storeBackground(image);settingsNotice.textContent="已恢复旧版本保存的背景图片。";}
+        catch {settingsNotice.textContent="旧背景未能自动恢复，请重新选择图片。";}
+      }
+    }).catch(async()=>{
+      if(legacyBackground){try{const response=await fetch(legacyBackground);const image=await response.blob();originalBackground=image;await prepareBackground(image);}catch{}}
+    });
   </script>
 </body>
 </html>
