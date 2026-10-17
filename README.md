@@ -20,6 +20,22 @@
 
 图片与 PDF 作为文件内容交给 Gemini；Office 文档由后端提取可读取的文字与表格数据。背景上传支持 JPG、PNG、WebP，HEIF／HEIC 可尝试在浏览器中转换为 JPG，不经过 ASTUDYA 后端上传。
 
+## 界面展示
+
+以下为项目实际运行截图，分别展示两种学习模式和个性化背景效果。
+
+### 日间模式 · 快速解答
+
+![ASTUDYA 日间模式：Python 学习问题与 AI 解答](docs/screenshots/day-mode.png)
+
+### 夜间模式 · 交互式教学
+
+![ASTUDYA 夜间模式：Python 交互式教学](docs/screenshots/night-mode.png)
+
+### 个性化界面 · 自定义背景
+
+![ASTUDYA 个性化背景与玻璃拟态界面](docs/screenshots/personalization.png)
+
 ## 技术架构
 
 | 层次 | 技术 |
