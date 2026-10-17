@@ -20,6 +20,10 @@
       --wallpaper-brightness: 1;
       --wallpaper-position-x: 50%;
       --wallpaper-position-y: 50%;
+      --wallpaper-photo-x: 50%;
+      --wallpaper-photo-y: 50%;
+      --wallpaper-zoom: 1;
+      --wallpaper-rotation: 0deg;
       --ui-font-stack: "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
       --reading-leading: 1.83;
       --page-max-width: 1190px;
@@ -44,7 +48,22 @@
       background-size: cover; background-repeat: no-repeat;
       opacity: var(--wallpaper-opacity);
       filter: blur(var(--wallpaper-blur)) brightness(var(--wallpaper-brightness));
-      pointer-events: none; z-index: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    #wallpaperPhoto {
+      position: absolute; left: 50%; top: 50%;
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: var(--wallpaper-photo-x) var(--wallpaper-photo-y);
+      transform-origin: center center;
+      transform: translate(-50%, -50%) rotate(var(--wallpaper-rotation)) scale(var(--wallpaper-zoom));
+      will-change: transform;
+    }
+    /* A quarter turn swaps the image layer's dimensions, keeping the background covered. */
+    #wallpaperPhoto.wallpaper-turned {
+      width: calc(100dvh + 36px);
+      height: calc(100vw + 36px);
     }
     #backgroundTint { position:fixed; inset:0; pointer-events:none; z-index:0; background:var(--page-color); opacity:.06; }
     .app-shell { position:relative; z-index:1; }
@@ -166,6 +185,9 @@
     .image-preview {display:flex;align-items:center;gap:11px;margin:12px 0 0;padding:8px;border-radius:13px;background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.48);}
     .image-thumbnail {width:62px;height:45px;flex-shrink:0;background:linear-gradient(135deg,#ccdce9,#f2e2d3);background-size:cover;background-position:center;border-radius:9px;}
     .image-preview p {margin:0;font-size:11px;line-height:1.5;color:#60738b;}
+    .wallpaper-rotate-actions {display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+    .wallpaper-rotate-actions .btn {padding:7px 11px;font-size:12px;flex:1;white-space:nowrap;}
+    .wallpaper-rotate-actions .btn:last-child {flex:1.2;}
     .settings-footer {padding:12px 17px 15px;border-top:1px solid rgba(255,255,255,.6);display:flex;gap:9px;align-items:center;}
     .settings-footer .btn:first-child{flex:1}.settings-footer .btn:last-child{flex:1.2}
     .settings-notice {font-size:11px;color:#52677f;min-height:0;margin:0 16px 12px;}
@@ -670,7 +692,7 @@
   </style>
 </head>
 <body>
-  <div id="wallpaper" aria-hidden="true"></div>
+  <div id="wallpaper" aria-hidden="true"><div id="wallpaperPhoto"></div></div>
   <div id="backgroundTint" aria-hidden="true"></div>
 
   <div class="app-shell">
@@ -766,10 +788,10 @@
           <h3>背景图片</h3>
           <div class="settings-buttons">
             <label class="btn btn-secondary file-label" for="backgroundUpload">选择本地图片</label>
-            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/jpeg,image/png,image/webp" aria-label="上传背景图片">
+            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/*,.heic,.heif" aria-label="上传背景图片">
             <button class="btn btn-secondary" type="button" onclick="removeBackground()">移除图片</button>
           </div>
-          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。可上传 JPG、PNG、WebP。</p></div>
+          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。支持 JPG、PNG、WebP；HEIF 将自动转换。</p></div>
           <div class="setting-row" style="margin-top:12px">
             <div class="setting-heading"><label for="wallpaperResolution">高清适配</label><span class="setting-value">原图始终保留</span></div>
             <select class="setting-select" id="wallpaperResolution" aria-label="背景图片高清适配模式">
@@ -781,13 +803,25 @@
           </div>
         </section>
         <section class="setting-group">
+          <h3>背景构图</h3>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperZoom">缩放大小</label><span class="setting-value" id="wallpaperZoomValue"></span></div><input id="wallpaperZoom" type="range" min="100" max="250" step="5"><div class="setting-control-caption">100% 为铺满屏幕；放大后可调整画面的显示位置。</div></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPositionX">左右移动</label><span class="setting-value" id="wallpaperPositionXValue"></span></div><input id="wallpaperPositionX" type="range" min="0" max="100" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPosition">上下移动</label><span class="setting-value" id="wallpaperPositionValue"></span></div><input id="wallpaperPosition" type="range" min="0" max="100" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><span>旋转方向</span><span class="setting-value" id="wallpaperRotationValue">0°</span></div>
+            <div class="wallpaper-rotate-actions">
+              <button class="btn btn-secondary" type="button" onclick="rotateWallpaper(-90)" aria-label="背景向左旋转 90 度">↶ 左转 90°</button>
+              <button class="btn btn-secondary" type="button" onclick="rotateWallpaper(90)" aria-label="背景向右旋转 90 度">↷ 右转 90°</button>
+              <button class="btn btn-secondary" type="button" onclick="resetWallpaperFraming()">恢复居中</button>
+            </div>
+          </div>
+          <p class="setting-description">移动滑块调节画面焦点；如果某个方向没有可裁切区域，建议先放大一点。所有调整只改变显示效果，不修改原图。</p>
+        </section>
+        <section class="setting-group">
           <h3>背景效果</h3>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperOpacity">图片可见度</label><span class="setting-value" id="wallpaperOpacityValue"></span></div><input id="wallpaperOpacity" type="range" min="20" max="100" step="1"></div>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperBlur">背景柔和程度</label><span class="setting-value" id="wallpaperBlurValue"></span></div><input id="wallpaperBlur" type="range" min="0" max="16" step="1"></div>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperBrightness">图片亮度</label><span class="setting-value" id="wallpaperBrightnessValue"></span></div><input id="wallpaperBrightness" type="range" min="55" max="145" step="1"></div>
-          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPositionX">图片横向位置</label><span class="setting-value" id="wallpaperPositionXValue"></span></div><input id="wallpaperPositionX" type="range" min="0" max="100" step="1"><div class="setting-control-caption">向左或向右调整裁切焦点，适合人物和风景照片。</div></div>
-          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPosition">图片垂直位置</label><span class="setting-value" id="wallpaperPositionValue"></span></div><input id="wallpaperPosition" type="range" min="0" max="100" step="1"></div>
-          <p class="setting-description">横向、纵向位置控制背景裁切；当某个方向没有多余图片可裁切时，该方向的滑块可能看不出变化。1080p／4K 是像素缩放，不会创造真实细节。</p>
+          <p class="setting-description">1080p／4K 是图片像素适配，不等于上方的画面缩放；放大显示不会创造真实细节。</p>
         </section>
       </div>
       <div class="settings-view" id="viewGlass" hidden>
@@ -1307,6 +1341,8 @@
       wallpaperBrightness: 100,
       wallpaperPosition: 50,
       wallpaperPositionX: 50,
+      wallpaperZoom: 100,
+      wallpaperRotation: 0,
       wallpaperResolution: "auto",
       pageTheme: "cool",
       fontColor: "#172132",
@@ -1323,11 +1359,12 @@
     };
     const themeColors = {cool:"#eaf0f7",white:"#ffffff",warm:"#f8f1e8",mist:"#e4eef8"};
     // cardTone uses three preview buttons rather than a select/range input.
-    const settingIds = Object.keys(defaultSettings).filter(id => id !== "cardTone");
+    const settingIds = Object.keys(defaultSettings).filter(id => !["cardTone","wallpaperRotation"].includes(id));
     let preferences = {...defaultSettings};
     let wallpaperObjectUrl = null;
     let originalBackground = null;
     let processingSerial = 0;
+    let uploadSerial = 0;
     const settingsPanel = document.getElementById("settingsPanel");
     const settingsBackdrop = document.getElementById("settingsBackdrop");
     const settingsButton = document.getElementById("settingsButton");
@@ -1419,6 +1456,18 @@
       root.setProperty("--wallpaper-brightness",preferences.wallpaperBrightness/100);
       root.setProperty("--wallpaper-position-x",preferences.wallpaperPositionX+"%");
       root.setProperty("--wallpaper-position-y",preferences.wallpaperPosition+"%");
+      const rotation = preferences.wallpaperRotation;
+      const px = preferences.wallpaperPositionX, py = preferences.wallpaperPosition;
+      // Translate screen-facing horizontal/vertical focal points back to photo coordinates.
+      const focus = rotation === 90 ? [py, 100-px]
+        : rotation === 180 ? [100-px,100-py]
+        : rotation === 270 ? [100-py,px] : [px,py];
+      root.setProperty("--wallpaper-photo-x",focus[0]+"%");
+      root.setProperty("--wallpaper-photo-y",focus[1]+"%");
+      root.setProperty("--wallpaper-zoom",preferences.wallpaperZoom/100);
+      root.setProperty("--wallpaper-rotation",rotation+"deg");
+      document.getElementById("wallpaperPhoto").classList.toggle("wallpaper-turned",rotation % 180 !== 0);
+      document.getElementById("wallpaperRotationValue").textContent=rotation+"°";
       root.setProperty("--page-color", tone === "white"
         ? (themeColors[preferences.pageTheme] || themeColors.cool)
         : (tone === "gray" ? "#526075" : "#0d1728"));
@@ -1460,6 +1509,17 @@
     function toggleDayNight() {
       chooseCardTone(preferences.cardTone === "white" ? "black" : "white");
     }
+    function rotateWallpaper(delta) {
+      preferences.wallpaperRotation = (preferences.wallpaperRotation + delta + 360) % 360;
+      applyPreferences(); savePreferences();
+    }
+    function resetWallpaperFraming() {
+      preferences.wallpaperZoom = 100;
+      preferences.wallpaperPositionX = 50;
+      preferences.wallpaperPosition = 50;
+      preferences.wallpaperRotation = 0;
+      applyPreferences(); savePreferences();
+    }
     function useGlassPreset(name) {
       const presets = {airy:{cardOpacity:35,glassBlur:9}, balanced:{cardOpacity:64,glassBlur:12},clear:{cardOpacity:87,glassBlur:19}};
       if (!presets[name]) return;
@@ -1499,6 +1559,8 @@
         if (/^#[0-9a-fA-F]{6}$/.test(older.accentColor||"")) preferences.accentColor = older.accentColor;
       } else if(saved) {
         for(const id of settingIds) if(saved[id] !== undefined) preferences[id]=saved[id];
+        if ([0,90,180,270].includes(Number(saved.wallpaperRotation)))
+          preferences.wallpaperRotation = Number(saved.wallpaperRotation);
       }
       for (const id of settingIds) {
         const control = document.getElementById(id);
@@ -1547,7 +1609,38 @@
         tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
       });} finally{db.close();}
     }
-    // Store untouched source in IndexedDB. Preview is generated in memory as needed.
+    // Convert HEIC/HEIF on-device when Chrome cannot display the source file directly.
+    function isHeifBackground(file) {
+      return /\.hei[cf]$/i.test(file.name || "") || /^image\/hei[cf](?:-sequence)?$/i.test(file.type || "");
+    }
+    let heifConverterPromise = null;
+    function loadHeifConverter() {
+      if (typeof window.heic2any === "function") return Promise.resolve(window.heic2any);
+      if (!heifConverterPromise) {
+        heifConverterPromise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+          script.async = true;
+          script.onload = () => typeof window.heic2any === "function"
+            ? resolve(window.heic2any) : reject(new Error("转换组件未能启动"));
+          script.onerror = () => reject(new Error("转换组件下载失败，请检查网络"));
+          document.head.appendChild(script);
+        }).catch(error => {
+          heifConverterPromise = null;
+          throw error;
+        });
+      }
+      return heifConverterPromise;
+    }
+    async function convertHeifBackground(file) {
+      const convert = await loadHeifConverter();
+      const result = await convert({blob:file, toType:"image/jpeg", quality:0.9});
+      const jpg = Array.isArray(result) ? result[0] : result;
+      if (!(jpg instanceof Blob) || !jpg.size || jpg.type !== "image/jpeg")
+        throw new Error("转换后没有得到可用的 JPG 图片");
+      return jpg;
+    }
+    // Save only images that have passed browser decode. Preview is generated in memory.
     async function prepareBackground(blob) {
       if (!blob) return;
       const serial = ++processingSerial;
@@ -1555,8 +1648,10 @@
       const mode = preferences.wallpaperResolution;
       info.textContent = "正在分析图片分辨率…";
       let bitmap;
+      let decoded = false;
       try {
         bitmap = await createImageBitmap(blob);
+        decoded = true;
         const w = bitmap.width, h = bitmap.height;
         let result = blob, outW = w, outH = h;
         if (mode !== "auto") {
@@ -1591,11 +1686,16 @@
           ? `原图 ${source} 像素 · 保留原始质量，自动铺满屏幕。`
           : `原图 ${source} → 适配 ${output} 像素。${sizeChanged ? "放大像素不会产生新的真实细节。" : "已高质量缩放。"}`;
         imageState.textContent = `背景已加载 · 当前显示 ${output} 像素`;
+        return true;
       } catch (error) {
-        if (serial === processingSerial) {
-          displayBackground(blob);
-          info.textContent = `无法完成高清处理，已使用原图。${error.message || ""}`;
+        if (serial !== processingSerial) return false;
+        if (!decoded) {
+          info.textContent = "浏览器无法解码这张图片。请改用 JPG、PNG，或选择 HEIF 自动转换。";
+          throw error;
         }
+        displayBackground(blob);
+        info.textContent = `高清适配失败，已改用原图显示。${error.message || ""}`;
+        return true;
       } finally {
         if (bitmap) bitmap.close();
       }
@@ -1607,18 +1707,19 @@
     function displayBackground(blob) {
       if (wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
       wallpaperObjectUrl=URL.createObjectURL(blob);
-      document.getElementById("wallpaper").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
+      document.getElementById("wallpaperPhoto").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
       document.getElementById("imageThumbnail").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
       imageState.textContent="已加载自定义背景 · 调节下方滑块预览";
     }
     async function removeBackground() {
+      ++uploadSerial;
       ++processingSerial;
       originalBackground = null;
       document.getElementById("wallpaperResolutionNote").textContent =
         "选择图片后会显示实际像素尺寸。原图不会因切换档位而丢失。";
       if(wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
       wallpaperObjectUrl=null;
-      document.getElementById("wallpaper").style.backgroundImage="";
+      document.getElementById("wallpaperPhoto").style.backgroundImage="";
       document.getElementById("imageThumbnail").style.backgroundImage="";
       applyPreferences(); // restore the correct day/gray/night fallback once the photo is removed
       document.getElementById("backgroundUpload").value="";
@@ -1627,15 +1728,49 @@
       catch {settingsNotice.textContent="背景已在当前页面移除，但浏览器存储可能未清除。";}
     }
     document.getElementById("backgroundUpload").addEventListener("change",async event=>{
-      const file=event.target.files[0];if(!file)return;
-      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){settingsNotice.textContent="请使用 JPG、PNG 或 WebP 格式。";return;}
-      if(file.size>15*1024*1024){settingsNotice.textContent="图片超过 15 MB，请选择较小的图片。";return;}
+      const file = event.target.files[0];
+      if (!file) return;
+      const attempt = ++uploadSerial;
+      const isHeif = isHeifBackground(file);
+      const isStandard = ["image/jpeg","image/png","image/webp"].includes(file.type);
+      if (!isHeif && !isStandard) {
+        settingsNotice.textContent = "请使用 JPG、PNG、WebP 或 HEIF/HEIC 图片。";
+        event.target.value = "";
+        return;
+      }
+      if (file.size > 15*1024*1024) {
+        settingsNotice.textContent = "图片超过 15 MB，请选择较小的图片。";
+        event.target.value = "";
+        return;
+      }
+      const previousState = imageState.textContent;
       try {
-        originalBackground = file;
-        await prepareBackground(file);
-        try {await storeBackground(file);settingsNotice.textContent="背景已保存，可在当前浏览器中恢复。";}
-        catch {settingsNotice.textContent="背景已显示，但保存失败，刷新后可能丢失。";}
-      } catch {settingsNotice.textContent="无法打开这张图片，请更换文件。";}
+        if (isHeif) {
+          settingsNotice.textContent = "正在本机转换 HEIF 为 JPG，请稍候…";
+          imageState.textContent = "正在转换 HEIF / HEIC 图片…";
+        }
+        const image = isHeif ? await convertHeifBackground(file) : file;
+        if (attempt !== uploadSerial) return;
+        if (!await prepareBackground(image)) return;
+        if (attempt !== uploadSerial) return;
+        originalBackground = image;
+        try {
+          await storeBackground(image);
+          if (attempt === uploadSerial) settingsNotice.textContent =
+            isHeif ? "HEIF 已在本机转换为 JPG，并保存为背景。" : "背景已保存，可在当前浏览器中恢复。";
+        } catch {
+          if (attempt === uploadSerial) settingsNotice.textContent = "背景已显示，但保存失败，刷新后可能丢失。";
+        }
+      } catch (error) {
+        if (attempt === uploadSerial) {
+          imageState.textContent = previousState;
+          settingsNotice.textContent = isHeif
+            ? "HEIF 转换失败：" + (error.message || "当前图片编码不受支持") + "。可尝试另存为 JPG 后上传。"
+            : "无法解码图片，请尝试另一张 JPG 或 PNG。";
+        }
+      } finally {
+        event.target.value = "";
+      }
     });
     async function restoreDefaults(){preferences={...defaultSettings};applyPreferences();savePreferences();await removeBackground();settingsNotice.textContent="已恢复默认外观。";}
     readBackground().then(async blob=>{
