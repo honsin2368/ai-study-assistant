@@ -611,6 +611,51 @@
     html[data-surface-tone="black"] .settings-panel .settings-tabs,
     html[data-surface-tone="gray"] .settings-panel .settings-footer,
     html[data-surface-tone="black"] .settings-panel .settings-footer {border-color:rgba(229,239,255,.17);}
+
+    /* V0.3 · personal shortcuts & attachment composer */
+    .quick-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .quick-head .field-heading{margin-bottom:8px}
+    .micro-button{border:1px solid rgba(255,255,255,.64);background:rgba(255,255,255,.4);color:inherit;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:670}
+    .micro-button:hover:not(:disabled){background:rgba(255,255,255,.67)}
+    .quick-head .micro-button{margin-top:9px}
+    .attachment-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:9px}
+    .attachment-tip{font-size:10.5px;color:#63758c;line-height:1.35}
+    .file-input-hidden{display:none!important}
+    .attachment-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+    .attachment-list:empty{display:none}
+    .file-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:1px solid rgba(255,255,255,.65);background:rgba(255,255,255,.47);padding:5px 6px 5px 9px;border-radius:9px;font-size:11px;color:inherit}
+    .file-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:155px}
+    .file-chip button{border:0;background:rgba(110,128,152,.12);border-radius:7px;color:inherit;width:19px;height:19px;line-height:17px;padding:0}
+    .prompt-backdrop{position:fixed;inset:0;z-index:28;background:rgba(10,22,42,.07)}
+    .prompt-editor{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:29;
+       box-sizing:border-box;width:min(490px,calc(100vw - 28px));max-height:calc(100dvh - 36px);overflow-y:auto;
+       border:1px solid rgba(255,255,255,.75);border-radius:23px;padding:21px;
+       background:rgba(237,242,249,.89);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+       box-shadow:0 28px 75px rgba(18,35,60,.25);color:#203249}
+    .prompt-editor[hidden],.prompt-backdrop[hidden]{display:none!important}
+    .prompt-editor-top{display:flex;align-items:start;justify-content:space-between;gap:12px}
+    .prompt-editor-top h2{margin:4px 0 0;font-size:20px}
+    .prompt-editor-description{font-size:12px;line-height:1.7;color:#60748c}
+    .prompt-editor-items{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+    .prompt-editor-item{display:flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.7);border-radius:11px;padding:7px 9px;background:rgba(255,255,255,.32)}
+    .prompt-editor-item-title{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:650}
+    .prompt-editor label{display:block;margin:12px 0 6px;font-size:12px;font-weight:710}
+    .prompt-editor input,.prompt-editor textarea{width:100%;box-sizing:border-box;color:#203249;background:rgba(255,255,255,.68);border:1px solid rgba(176,191,211,.65);border-radius:11px;padding:10px 12px;font-size:13px}
+    .prompt-editor textarea{height:106px;min-height:106px;resize:vertical;flex:none}
+    .prompt-editor-notice{min-height:16px;margin:7px 0;font-size:12px;color:#7c5363}
+    .prompt-editor-actions{display:flex;gap:8px;margin-top:8px}
+    .prompt-editor-actions .btn{flex:1}
+    html[data-surface-tone="gray"] .prompt-editor,html[data-surface-tone="black"] .prompt-editor{background:rgba(27,38,56,.93);color:#edf4ff;border-color:rgba(225,236,250,.23)}
+    html[data-surface-tone="gray"] .prompt-editor .prompt-editor-description,html[data-surface-tone="black"] .prompt-editor .prompt-editor-description{color:#b7c9df}
+    html[data-surface-tone="gray"] .prompt-editor input,html[data-surface-tone="gray"] .prompt-editor textarea,html[data-surface-tone="black"] .prompt-editor input,html[data-surface-tone="black"] .prompt-editor textarea{background:rgba(12,24,42,.62);color:#f2f6ff}
+    html[data-surface-tone="gray"] .attachment-tip,html[data-surface-tone="black"] .attachment-tip{color:#b7c9df}
+    @media (min-width:861px) and (min-height:700px){
+      .composer .attachment-bar{margin-top:6px}
+      .composer .attachment-tip{font-size:10px}
+      .composer .file-chip{padding:3px 5px 3px 7px}
+      .composer .quick-head .field-heading{margin-top:9px}
+    }
+
   </style>
 </head>
 <body>
@@ -650,15 +695,20 @@
           </div>
           <p id="modeDescription" class="mode-description">提炼要点与示例，快速得到答案。</p>
 
-          <div class="field-heading">快速开始</div>
-          <div class="suggestions">
-            <button class="suggestion" type="button" onclick="fillQuestion('用 Python 解释什么是列表，并举一个例子')">Python 列表</button>
-            <button class="suggestion" type="button" onclick="fillQuestion('什么是前端和后端？请通俗解释')">前端与后端</button>
-            <button class="suggestion" type="button" onclick="fillQuestion('解释 Python 的 for 循环，并举例说明')">for 循环</button>
+          <div class="quick-head">
+            <span class="field-heading">我的快捷提问</span>
+            <button id="managePrompts" class="micro-button" type="button" onclick="togglePromptEditor(true)" aria-label="管理快捷提问">编辑</button>
           </div>
+          <div id="quickPromptList" class="suggestions" aria-label="快捷提问列表"></div>
 
           <label class="field-heading" for="question">想了解什么？</label>
-          <textarea id="question" placeholder="例如：Python 列表和元组有什么区别？" maxlength="4000"></textarea>
+          <textarea id="question" placeholder="例如：结合我的课件，讲解列表与元组的区别。" maxlength="4000"></textarea>
+          <div class="attachment-bar">
+            <button id="attachButton" class="micro-button attach-button" type="button" onclick="document.getElementById('attachmentInput').click()">＋ 添加附件</button>
+            <span class="attachment-tip">图片、PDF、Word、PPT、Excel、文本</span>
+          </div>
+          <input id="attachmentInput" class="file-input-hidden" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.pdf,.txt,.md,.csv,.json,.py,.docx,.pptx,.xlsx" aria-label="选择附件">
+          <div id="attachmentList" class="attachment-list" aria-live="polite"></div>
           <div class="input-hint"><kbd>Enter</kbd> 发送 <span aria-hidden="true">·</span> <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</div>
           <div class="actions">
             <button id="clearButton" class="btn btn-secondary" type="button" onclick="clearQuestion()">清空对话</button>
@@ -809,6 +859,22 @@
     <p id="settingsNotice" class="settings-notice" role="status"></p>
   </aside>
 
+
+  <div id="promptBackdrop" class="prompt-backdrop" hidden onclick="togglePromptEditor(false)"></div>
+  <section id="promptEditor" class="prompt-editor" role="dialog" aria-modal="true" aria-label="管理快捷提问" hidden>
+    <div class="prompt-editor-top"><div><div class="panel-label">PERSONAL SHORTCUTS</div><h2>管理快捷提问</h2></div><button class="micro-button" type="button" onclick="togglePromptEditor(false)" aria-label="关闭快捷提问管理">关闭</button></div>
+    <p class="prompt-editor-description">为常用问题取一个短标题。点击标签会把完整提问填入输入框；设置仅保存在当前浏览器。</p>
+    <div id="promptEditorItems" class="prompt-editor-items"></div>
+    <form id="promptForm" onsubmit="event.preventDefault();saveQuickPrompt()">
+      <label for="promptTitle">快捷标题（最多 20 字）</label>
+      <input id="promptTitle" maxlength="20" required placeholder="例如：代码逐行解释">
+      <label for="promptContent">完整提问内容</label>
+      <textarea id="promptContent" maxlength="4000" required placeholder="例如：请逐行解释我提供的代码，指出重点和常见错误。"></textarea>
+      <p id="promptEditorNotice" class="prompt-editor-notice" role="status"></p>
+      <div class="prompt-editor-actions"><button type="button" class="btn btn-secondary" onclick="newQuickPrompt()">新增一条</button><button id="savePromptButton" type="submit" class="btn btn-primary">保存快捷提问</button></div>
+    </form>
+  </section>
+
   <script>
     // 学习对话逻辑：与现有 web/app.py 中的 quick / tutor 接口兼容
     const questionInput = document.getElementById("question");
@@ -841,6 +907,9 @@
       quickModeButton.disabled = loading;
       tutorModeButton.disabled = loading;
       copyButton.disabled = loading || !currentAnswer;
+      attachButton.disabled = loading;
+      document.getElementById("managePrompts").disabled = loading;
+      renderAttachments();
       sendButton.textContent = loading ? "正在思考..." : "发送问题";
     }
     function fillQuestion(text) {
@@ -879,12 +948,14 @@
         ? "提炼要点与示例，快速得到答案。"
         : "分步讲解与追问，结合上下文继续学习。";
       questionInput.value = "";
+      clearAttachments();
       resetConversation();
       questionInput.focus();
     }
     function clearQuestion() {
       if (isLoading) return;
       questionInput.value = "";
+      clearAttachments();
       resetConversation();
       questionInput.focus();
     }
@@ -1005,13 +1076,14 @@
     }
     async function askQuestion() {
       if (isLoading) return;
-      const question = questionInput.value.trim();
-      if (!question) { setStatus("请先输入问题", "error"); questionInput.focus(); return; }
+      const hasFiles = selectedFiles.length > 0;
+      const question = questionInput.value.trim() || (hasFiles ? "请概述附件，并整理成容易理解的学习笔记。" : "");
+      if (!question) { setStatus("请先输入问题或添加附件", "error"); questionInput.focus(); return; }
       if (question.length > 4000) { setStatus("问题不能超过 4000 字", "error"); return; }
       currentAnswer = "";
       let modelBody = null;
       if (currentMode === "tutor") {
-        addChatMessage("user", question);
+        addChatMessage("user", question + (hasFiles ? "\n附件：" + selectedFiles.map(file => file.name).join("、") : ""));
         modelBody = addChatMessage("model", "正在准备下一步教学内容……", true);
       } else {
         showPlaceholder(answer, "正在整理回答，请稍候……");
@@ -1020,14 +1092,23 @@
       setStatus("正在生成回答", "loading");
       setLoading(true);
       try {
-        const response = await fetch("/api/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question,
-            mode: currentMode,
+        let requestBody, requestHeaders = {};
+        if (hasFiles) {
+          const form = new FormData();
+          form.append("question", question);
+          form.append("mode", currentMode);
+          form.append("history", JSON.stringify(currentMode === "tutor" ? chatHistory.slice(-12) : []));
+          selectedFiles.forEach(file => form.append("files", file, file.name));
+          requestBody = form;
+        } else {
+          requestHeaders = { "Content-Type": "application/json" };
+          requestBody = JSON.stringify({
+            question, mode: currentMode,
             history: currentMode === "tutor" ? chatHistory.slice(-12) : []
-          })
+          });
+        }
+        const response = await fetch(hasFiles ? "/api/ask-with-files" : "/api/ask", {
+          method: "POST", headers: requestHeaders, body: requestBody
         });
         if (!response.ok) throw new Error("HTTP 状态码：" + response.status);
         const data = await response.json();
@@ -1050,6 +1131,7 @@
         }
         setStatus("回答已生成", "success");
         questionInput.value = "";
+        if (currentMode === "quick") clearAttachments();
         questionInput.focus();
       } catch (error) {
         currentAnswer = "";
@@ -1078,6 +1160,133 @@
     });
     resetConversation();
 
+
+
+    // Personal shortcuts: browser-local, editable, no server account required.
+    const quickPromptKey = "astudya_personal_shortcuts_v1";
+    const defaultQuickPrompts = [
+      {title:"Python 列表",text:"用 Python 解释什么是列表，并举一个例子"},
+      {title:"前端与后端",text:"什么是前端和后端？请通俗解释"},
+      {title:"for 循环",text:"解释 Python 的 for 循环，并举例说明"}
+    ];
+    function loadQuickPrompts(){
+      try{
+        const raw=localStorage.getItem(quickPromptKey);
+        if(raw===null)return defaultQuickPrompts.map(p=>({...p}));
+        const parsed=JSON.parse(raw);
+        if(!Array.isArray(parsed))throw new Error("invalid prompts");
+        return parsed.slice(0,8).filter(p=>p&&typeof p.title==="string"&&typeof p.text==="string")
+          .map(p=>({title:p.title.slice(0,20),text:p.text.slice(0,4000)}))
+          .filter(p=>p.title.trim()&&p.text.trim());
+      }catch{return defaultQuickPrompts.map(p=>({...p}));}
+    }
+    let quickPrompts=loadQuickPrompts();
+    let editingPromptIndex=null;
+    const promptEditor=document.getElementById("promptEditor");
+    const promptBackdrop=document.getElementById("promptBackdrop");
+    function persistQuickPrompts(){
+      try{localStorage.setItem(quickPromptKey,JSON.stringify(quickPrompts));}
+      catch{document.getElementById("promptEditorNotice").textContent="浏览器未能保存这些设置，请检查存储权限。";}
+    }
+    function renderQuickPrompts(){
+      const container=document.getElementById("quickPromptList");
+      container.replaceChildren();
+      if(!quickPrompts.length){
+        const p=document.createElement("span");p.className="attachment-tip";p.textContent="暂无快捷问题，点击「编辑」添加。";container.appendChild(p);
+      }
+      quickPrompts.forEach(p=>{
+        const button=document.createElement("button");
+        button.className="suggestion";button.type="button";button.textContent=p.title;button.title=p.text;
+        button.addEventListener("click",()=>fillQuestion(p.text));
+        container.appendChild(button);
+      });
+    }
+    function renderPromptEditorItems(){
+      const container=document.getElementById("promptEditorItems");container.replaceChildren();
+      quickPrompts.forEach((prompt,index)=>{
+        const item=document.createElement("div");item.className="prompt-editor-item";
+        const title=document.createElement("span");title.className="prompt-editor-item-title";title.textContent=prompt.title;
+        const edit=document.createElement("button");edit.type="button";edit.className="micro-button";edit.textContent="修改";
+        edit.onclick=()=>editQuickPrompt(index);
+        const remove=document.createElement("button");remove.type="button";remove.className="micro-button";remove.textContent="删除";
+        remove.onclick=()=>removeQuickPrompt(index);
+        item.append(title,edit,remove);container.appendChild(item);
+      });
+    }
+    function newQuickPrompt(){
+      editingPromptIndex=null;
+      document.getElementById("promptTitle").value="";
+      document.getElementById("promptContent").value="";
+      document.getElementById("savePromptButton").textContent="添加快捷提问";
+      document.getElementById("promptEditorNotice").textContent="";
+      document.getElementById("promptTitle").focus();
+    }
+    function editQuickPrompt(index){
+      editingPromptIndex=index;
+      document.getElementById("promptTitle").value=quickPrompts[index].title;
+      document.getElementById("promptContent").value=quickPrompts[index].text;
+      document.getElementById("savePromptButton").textContent="保存修改";
+      document.getElementById("promptEditorNotice").textContent="";
+      document.getElementById("promptTitle").focus();
+    }
+    function removeQuickPrompt(index){
+      quickPrompts.splice(index,1);persistQuickPrompts();renderQuickPrompts();renderPromptEditorItems();newQuickPrompt();
+    }
+    function saveQuickPrompt(){
+      const title=document.getElementById("promptTitle").value.trim();
+      const text=document.getElementById("promptContent").value.trim();
+      const note=document.getElementById("promptEditorNotice");
+      if(!title||!text){note.textContent="请填写标题和完整提问。";return;}
+      if(editingPromptIndex===null){
+        if(quickPrompts.length>=8){note.textContent="最多保存 8 条快捷提问，请删除不常用的再添加。";return;}
+        quickPrompts.push({title,text});
+      }else quickPrompts[editingPromptIndex]={title,text};
+      persistQuickPrompts();renderQuickPrompts();renderPromptEditorItems();
+      newQuickPrompt();note.textContent="已保存。";
+    }
+    function togglePromptEditor(open){
+      if(isLoading&&open)return;
+      promptEditor.hidden=!open;promptBackdrop.hidden=!open;
+      if(open){renderPromptEditorItems();newQuickPrompt();}
+      else document.getElementById("managePrompts").focus();
+    }
+    renderQuickPrompts();
+    document.addEventListener("keydown",event=>{
+      if(event.key==="Escape"&&!promptEditor.hidden)togglePromptEditor(false);
+    });
+
+    // Files stay in the browser until submitted; tutor mode retains selected
+    // files for follow-ups, while quick mode clears them after success.
+    const attachmentInput=document.getElementById("attachmentInput");
+    const attachButton=document.getElementById("attachButton");
+    const attachmentList=document.getElementById("attachmentList");
+    const allowedAttachment=/\.(png|jpe?g|webp|pdf|txt|md|csv|json|py|docx|pptx|xlsx)$/i;
+    let selectedFiles=[];
+    function renderAttachments(){
+      attachmentList.replaceChildren();
+      selectedFiles.forEach((file,index)=>{
+        const chip=document.createElement("span");chip.className="file-chip";chip.setAttribute("role","listitem");
+        const name=document.createElement("span");name.className="file-chip-name";name.textContent=file.name;
+        const remove=document.createElement("button");remove.type="button";remove.textContent="×";
+        remove.disabled=isLoading;remove.setAttribute("aria-label","移除附件 "+file.name);
+        remove.onclick=()=>{if(!isLoading){selectedFiles.splice(index,1);renderAttachments();}};
+        chip.append(name,remove);attachmentList.appendChild(chip);
+      });
+    }
+    function clearAttachments(){selectedFiles=[];attachmentInput.value="";renderAttachments();}
+    attachmentInput.addEventListener("change",event=>{
+      if(isLoading)return;
+      for(const file of Array.from(event.target.files||[])){
+        if(!allowedAttachment.test(file.name)){setStatus("暂不支持「"+file.name+"」这种格式","error");continue;}
+        if(file.size>6*1024*1024){setStatus("单个附件最多 6 MB","error");continue;}
+        if(selectedFiles.length>=2){setStatus("一次最多添加 2 个附件","error");break;}
+        if(selectedFiles.reduce((sum,item)=>sum+item.size,0)+file.size>10*1024*1024){
+          setStatus("附件总大小最多 10 MB","error");break;
+        }
+        selectedFiles.push(file);
+      }
+      attachmentInput.value="";renderAttachments();
+    });
 
     // 外观设置：颜色与参数用 localStorage，原始背景图片放浏览器 IndexedDB。
     const defaultSettings = {
