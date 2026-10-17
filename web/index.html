@@ -788,10 +788,10 @@
           <h3>背景图片</h3>
           <div class="settings-buttons">
             <label class="btn btn-secondary file-label" for="backgroundUpload">选择本地图片</label>
-            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/jpeg,image/png,image/webp" aria-label="上传背景图片">
+            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/*,.heic,.heif" aria-label="上传背景图片">
             <button class="btn btn-secondary" type="button" onclick="removeBackground()">移除图片</button>
           </div>
-          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。可上传 JPG、PNG、WebP。</p></div>
+          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。支持 JPG、PNG、WebP；HEIF 将自动转换。</p></div>
           <div class="setting-row" style="margin-top:12px">
             <div class="setting-heading"><label for="wallpaperResolution">高清适配</label><span class="setting-value">原图始终保留</span></div>
             <select class="setting-select" id="wallpaperResolution" aria-label="背景图片高清适配模式">
@@ -1364,6 +1364,7 @@
     let wallpaperObjectUrl = null;
     let originalBackground = null;
     let processingSerial = 0;
+    let uploadSerial = 0;
     const settingsPanel = document.getElementById("settingsPanel");
     const settingsBackdrop = document.getElementById("settingsBackdrop");
     const settingsButton = document.getElementById("settingsButton");
@@ -1608,7 +1609,38 @@
         tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
       });} finally{db.close();}
     }
-    // Store untouched source in IndexedDB. Preview is generated in memory as needed.
+    // Convert HEIC/HEIF on-device when Chrome cannot display the source file directly.
+    function isHeifBackground(file) {
+      return /\.hei[cf]$/i.test(file.name || "") || /^image\/hei[cf](?:-sequence)?$/i.test(file.type || "");
+    }
+    let heifConverterPromise = null;
+    function loadHeifConverter() {
+      if (typeof window.heic2any === "function") return Promise.resolve(window.heic2any);
+      if (!heifConverterPromise) {
+        heifConverterPromise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+          script.async = true;
+          script.onload = () => typeof window.heic2any === "function"
+            ? resolve(window.heic2any) : reject(new Error("转换组件未能启动"));
+          script.onerror = () => reject(new Error("转换组件下载失败，请检查网络"));
+          document.head.appendChild(script);
+        }).catch(error => {
+          heifConverterPromise = null;
+          throw error;
+        });
+      }
+      return heifConverterPromise;
+    }
+    async function convertHeifBackground(file) {
+      const convert = await loadHeifConverter();
+      const result = await convert({blob:file, toType:"image/jpeg", quality:0.9});
+      const jpg = Array.isArray(result) ? result[0] : result;
+      if (!(jpg instanceof Blob) || !jpg.size || jpg.type !== "image/jpeg")
+        throw new Error("转换后没有得到可用的 JPG 图片");
+      return jpg;
+    }
+    // Save only images that have passed browser decode. Preview is generated in memory.
     async function prepareBackground(blob) {
       if (!blob) return;
       const serial = ++processingSerial;
@@ -1616,8 +1648,10 @@
       const mode = preferences.wallpaperResolution;
       info.textContent = "正在分析图片分辨率…";
       let bitmap;
+      let decoded = false;
       try {
         bitmap = await createImageBitmap(blob);
+        decoded = true;
         const w = bitmap.width, h = bitmap.height;
         let result = blob, outW = w, outH = h;
         if (mode !== "auto") {
@@ -1652,11 +1686,16 @@
           ? `原图 ${source} 像素 · 保留原始质量，自动铺满屏幕。`
           : `原图 ${source} → 适配 ${output} 像素。${sizeChanged ? "放大像素不会产生新的真实细节。" : "已高质量缩放。"}`;
         imageState.textContent = `背景已加载 · 当前显示 ${output} 像素`;
+        return true;
       } catch (error) {
-        if (serial === processingSerial) {
-          displayBackground(blob);
-          info.textContent = `无法完成高清处理，已使用原图。${error.message || ""}`;
+        if (serial !== processingSerial) return false;
+        if (!decoded) {
+          info.textContent = "浏览器无法解码这张图片。请改用 JPG、PNG，或选择 HEIF 自动转换。";
+          throw error;
         }
+        displayBackground(blob);
+        info.textContent = `高清适配失败，已改用原图显示。${error.message || ""}`;
+        return true;
       } finally {
         if (bitmap) bitmap.close();
       }
@@ -1673,6 +1712,7 @@
       imageState.textContent="已加载自定义背景 · 调节下方滑块预览";
     }
     async function removeBackground() {
+      ++uploadSerial;
       ++processingSerial;
       originalBackground = null;
       document.getElementById("wallpaperResolutionNote").textContent =
@@ -1688,20 +1728,49 @@
       catch {settingsNotice.textContent="背景已在当前页面移除，但浏览器存储可能未清除。";}
     }
     document.getElementById("backgroundUpload").addEventListener("change",async event=>{
-      const file=event.target.files[0];if(!file)return;
-      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){
-        settingsNotice.textContent=/\.(heif|heic)$/i.test(file.name)||/heif|heic/i.test(file.type)
-          ?"HEIF / HEIC 暂不支持，请在相册中转换为 JPG 或 PNG 后上传。"
-          :"请使用 JPG、PNG 或 WebP 格式。";
+      const file = event.target.files[0];
+      if (!file) return;
+      const attempt = ++uploadSerial;
+      const isHeif = isHeifBackground(file);
+      const isStandard = ["image/jpeg","image/png","image/webp"].includes(file.type);
+      if (!isHeif && !isStandard) {
+        settingsNotice.textContent = "请使用 JPG、PNG、WebP 或 HEIF/HEIC 图片。";
+        event.target.value = "";
         return;
       }
-      if(file.size>15*1024*1024){settingsNotice.textContent="图片超过 15 MB，请选择较小的图片。";return;}
+      if (file.size > 15*1024*1024) {
+        settingsNotice.textContent = "图片超过 15 MB，请选择较小的图片。";
+        event.target.value = "";
+        return;
+      }
+      const previousState = imageState.textContent;
       try {
-        originalBackground = file;
-        await prepareBackground(file);
-        try {await storeBackground(file);settingsNotice.textContent="背景已保存，可在当前浏览器中恢复。";}
-        catch {settingsNotice.textContent="背景已显示，但保存失败，刷新后可能丢失。";}
-      } catch {settingsNotice.textContent="无法打开这张图片，请更换文件。";}
+        if (isHeif) {
+          settingsNotice.textContent = "正在本机转换 HEIF 为 JPG，请稍候…";
+          imageState.textContent = "正在转换 HEIF / HEIC 图片…";
+        }
+        const image = isHeif ? await convertHeifBackground(file) : file;
+        if (attempt !== uploadSerial) return;
+        if (!await prepareBackground(image)) return;
+        if (attempt !== uploadSerial) return;
+        originalBackground = image;
+        try {
+          await storeBackground(image);
+          if (attempt === uploadSerial) settingsNotice.textContent =
+            isHeif ? "HEIF 已在本机转换为 JPG，并保存为背景。" : "背景已保存，可在当前浏览器中恢复。";
+        } catch {
+          if (attempt === uploadSerial) settingsNotice.textContent = "背景已显示，但保存失败，刷新后可能丢失。";
+        }
+      } catch (error) {
+        if (attempt === uploadSerial) {
+          imageState.textContent = previousState;
+          settingsNotice.textContent = isHeif
+            ? "HEIF 转换失败：" + (error.message || "当前图片编码不受支持") + "。可尝试另存为 JPG 后上传。"
+            : "无法解码图片，请尝试另一张 JPG 或 PNG。";
+        }
+      } finally {
+        event.target.value = "";
+      }
     });
     async function restoreDefaults(){preferences={...defaultSettings};applyPreferences();savePreferences();await removeBackground();settingsNotice.textContent="已恢复默认外观。";}
     readBackground().then(async blob=>{
