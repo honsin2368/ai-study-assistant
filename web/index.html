@@ -20,6 +20,10 @@
       --wallpaper-brightness: 1;
       --wallpaper-position-x: 50%;
       --wallpaper-position-y: 50%;
+      --wallpaper-photo-x: 50%;
+      --wallpaper-photo-y: 50%;
+      --wallpaper-zoom: 1;
+      --wallpaper-rotation: 0deg;
       --ui-font-stack: "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
       --reading-leading: 1.83;
       --page-max-width: 1190px;
@@ -44,7 +48,22 @@
       background-size: cover; background-repeat: no-repeat;
       opacity: var(--wallpaper-opacity);
       filter: blur(var(--wallpaper-blur)) brightness(var(--wallpaper-brightness));
-      pointer-events: none; z-index: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    #wallpaperPhoto {
+      position: absolute; left: 50%; top: 50%;
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: var(--wallpaper-photo-x) var(--wallpaper-photo-y);
+      transform-origin: center center;
+      transform: translate(-50%, -50%) rotate(var(--wallpaper-rotation)) scale(var(--wallpaper-zoom));
+      will-change: transform;
+    }
+    /* A quarter turn swaps the image layer's dimensions, keeping the background covered. */
+    #wallpaperPhoto.wallpaper-turned {
+      width: calc(100dvh + 36px);
+      height: calc(100vw + 36px);
     }
     #backgroundTint { position:fixed; inset:0; pointer-events:none; z-index:0; background:var(--page-color); opacity:.06; }
     .app-shell { position:relative; z-index:1; }
@@ -166,6 +185,9 @@
     .image-preview {display:flex;align-items:center;gap:11px;margin:12px 0 0;padding:8px;border-radius:13px;background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.48);}
     .image-thumbnail {width:62px;height:45px;flex-shrink:0;background:linear-gradient(135deg,#ccdce9,#f2e2d3);background-size:cover;background-position:center;border-radius:9px;}
     .image-preview p {margin:0;font-size:11px;line-height:1.5;color:#60738b;}
+    .wallpaper-rotate-actions {display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+    .wallpaper-rotate-actions .btn {padding:7px 11px;font-size:12px;flex:1;white-space:nowrap;}
+    .wallpaper-rotate-actions .btn:last-child {flex:1.2;}
     .settings-footer {padding:12px 17px 15px;border-top:1px solid rgba(255,255,255,.6);display:flex;gap:9px;align-items:center;}
     .settings-footer .btn:first-child{flex:1}.settings-footer .btn:last-child{flex:1.2}
     .settings-notice {font-size:11px;color:#52677f;min-height:0;margin:0 16px 12px;}
@@ -670,7 +692,7 @@
   </style>
 </head>
 <body>
-  <div id="wallpaper" aria-hidden="true"></div>
+  <div id="wallpaper" aria-hidden="true"><div id="wallpaperPhoto"></div></div>
   <div id="backgroundTint" aria-hidden="true"></div>
 
   <div class="app-shell">
@@ -781,13 +803,25 @@
           </div>
         </section>
         <section class="setting-group">
+          <h3>背景构图</h3>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperZoom">缩放大小</label><span class="setting-value" id="wallpaperZoomValue"></span></div><input id="wallpaperZoom" type="range" min="100" max="250" step="5"><div class="setting-control-caption">100% 为铺满屏幕；放大后可调整画面的显示位置。</div></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPositionX">左右移动</label><span class="setting-value" id="wallpaperPositionXValue"></span></div><input id="wallpaperPositionX" type="range" min="0" max="100" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPosition">上下移动</label><span class="setting-value" id="wallpaperPositionValue"></span></div><input id="wallpaperPosition" type="range" min="0" max="100" step="1"></div>
+          <div class="setting-row"><div class="setting-heading"><span>旋转方向</span><span class="setting-value" id="wallpaperRotationValue">0°</span></div>
+            <div class="wallpaper-rotate-actions">
+              <button class="btn btn-secondary" type="button" onclick="rotateWallpaper(-90)" aria-label="背景向左旋转 90 度">↶ 左转 90°</button>
+              <button class="btn btn-secondary" type="button" onclick="rotateWallpaper(90)" aria-label="背景向右旋转 90 度">↷ 右转 90°</button>
+              <button class="btn btn-secondary" type="button" onclick="resetWallpaperFraming()">恢复居中</button>
+            </div>
+          </div>
+          <p class="setting-description">移动滑块调节画面焦点；如果某个方向没有可裁切区域，建议先放大一点。所有调整只改变显示效果，不修改原图。</p>
+        </section>
+        <section class="setting-group">
           <h3>背景效果</h3>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperOpacity">图片可见度</label><span class="setting-value" id="wallpaperOpacityValue"></span></div><input id="wallpaperOpacity" type="range" min="20" max="100" step="1"></div>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperBlur">背景柔和程度</label><span class="setting-value" id="wallpaperBlurValue"></span></div><input id="wallpaperBlur" type="range" min="0" max="16" step="1"></div>
           <div class="setting-row"><div class="setting-heading"><label for="wallpaperBrightness">图片亮度</label><span class="setting-value" id="wallpaperBrightnessValue"></span></div><input id="wallpaperBrightness" type="range" min="55" max="145" step="1"></div>
-          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPositionX">图片横向位置</label><span class="setting-value" id="wallpaperPositionXValue"></span></div><input id="wallpaperPositionX" type="range" min="0" max="100" step="1"><div class="setting-control-caption">向左或向右调整裁切焦点，适合人物和风景照片。</div></div>
-          <div class="setting-row"><div class="setting-heading"><label for="wallpaperPosition">图片垂直位置</label><span class="setting-value" id="wallpaperPositionValue"></span></div><input id="wallpaperPosition" type="range" min="0" max="100" step="1"></div>
-          <p class="setting-description">横向、纵向位置控制背景裁切；当某个方向没有多余图片可裁切时，该方向的滑块可能看不出变化。1080p／4K 是像素缩放，不会创造真实细节。</p>
+          <p class="setting-description">1080p／4K 是图片像素适配，不等于上方的画面缩放；放大显示不会创造真实细节。</p>
         </section>
       </div>
       <div class="settings-view" id="viewGlass" hidden>
@@ -1307,6 +1341,8 @@
       wallpaperBrightness: 100,
       wallpaperPosition: 50,
       wallpaperPositionX: 50,
+      wallpaperZoom: 100,
+      wallpaperRotation: 0,
       wallpaperResolution: "auto",
       pageTheme: "cool",
       fontColor: "#172132",
@@ -1323,7 +1359,7 @@
     };
     const themeColors = {cool:"#eaf0f7",white:"#ffffff",warm:"#f8f1e8",mist:"#e4eef8"};
     // cardTone uses three preview buttons rather than a select/range input.
-    const settingIds = Object.keys(defaultSettings).filter(id => id !== "cardTone");
+    const settingIds = Object.keys(defaultSettings).filter(id => !["cardTone","wallpaperRotation"].includes(id));
     let preferences = {...defaultSettings};
     let wallpaperObjectUrl = null;
     let originalBackground = null;
@@ -1419,6 +1455,18 @@
       root.setProperty("--wallpaper-brightness",preferences.wallpaperBrightness/100);
       root.setProperty("--wallpaper-position-x",preferences.wallpaperPositionX+"%");
       root.setProperty("--wallpaper-position-y",preferences.wallpaperPosition+"%");
+      const rotation = preferences.wallpaperRotation;
+      const px = preferences.wallpaperPositionX, py = preferences.wallpaperPosition;
+      // Translate screen-facing horizontal/vertical focal points back to photo coordinates.
+      const focus = rotation === 90 ? [py, 100-px]
+        : rotation === 180 ? [100-px,100-py]
+        : rotation === 270 ? [100-py,px] : [px,py];
+      root.setProperty("--wallpaper-photo-x",focus[0]+"%");
+      root.setProperty("--wallpaper-photo-y",focus[1]+"%");
+      root.setProperty("--wallpaper-zoom",preferences.wallpaperZoom/100);
+      root.setProperty("--wallpaper-rotation",rotation+"deg");
+      document.getElementById("wallpaperPhoto").classList.toggle("wallpaper-turned",rotation % 180 !== 0);
+      document.getElementById("wallpaperRotationValue").textContent=rotation+"°";
       root.setProperty("--page-color", tone === "white"
         ? (themeColors[preferences.pageTheme] || themeColors.cool)
         : (tone === "gray" ? "#526075" : "#0d1728"));
@@ -1460,6 +1508,17 @@
     function toggleDayNight() {
       chooseCardTone(preferences.cardTone === "white" ? "black" : "white");
     }
+    function rotateWallpaper(delta) {
+      preferences.wallpaperRotation = (preferences.wallpaperRotation + delta + 360) % 360;
+      applyPreferences(); savePreferences();
+    }
+    function resetWallpaperFraming() {
+      preferences.wallpaperZoom = 100;
+      preferences.wallpaperPositionX = 50;
+      preferences.wallpaperPosition = 50;
+      preferences.wallpaperRotation = 0;
+      applyPreferences(); savePreferences();
+    }
     function useGlassPreset(name) {
       const presets = {airy:{cardOpacity:35,glassBlur:9}, balanced:{cardOpacity:64,glassBlur:12},clear:{cardOpacity:87,glassBlur:19}};
       if (!presets[name]) return;
@@ -1499,6 +1558,8 @@
         if (/^#[0-9a-fA-F]{6}$/.test(older.accentColor||"")) preferences.accentColor = older.accentColor;
       } else if(saved) {
         for(const id of settingIds) if(saved[id] !== undefined) preferences[id]=saved[id];
+        if ([0,90,180,270].includes(Number(saved.wallpaperRotation)))
+          preferences.wallpaperRotation = Number(saved.wallpaperRotation);
       }
       for (const id of settingIds) {
         const control = document.getElementById(id);
@@ -1607,7 +1668,7 @@
     function displayBackground(blob) {
       if (wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
       wallpaperObjectUrl=URL.createObjectURL(blob);
-      document.getElementById("wallpaper").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
+      document.getElementById("wallpaperPhoto").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
       document.getElementById("imageThumbnail").style.backgroundImage=`url("${wallpaperObjectUrl}")`;
       imageState.textContent="已加载自定义背景 · 调节下方滑块预览";
     }
@@ -1618,7 +1679,7 @@
         "选择图片后会显示实际像素尺寸。原图不会因切换档位而丢失。";
       if(wallpaperObjectUrl) URL.revokeObjectURL(wallpaperObjectUrl);
       wallpaperObjectUrl=null;
-      document.getElementById("wallpaper").style.backgroundImage="";
+      document.getElementById("wallpaperPhoto").style.backgroundImage="";
       document.getElementById("imageThumbnail").style.backgroundImage="";
       applyPreferences(); // restore the correct day/gray/night fallback once the photo is removed
       document.getElementById("backgroundUpload").value="";
@@ -1628,7 +1689,12 @@
     }
     document.getElementById("backgroundUpload").addEventListener("change",async event=>{
       const file=event.target.files[0];if(!file)return;
-      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){settingsNotice.textContent="请使用 JPG、PNG 或 WebP 格式。";return;}
+      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){
+        settingsNotice.textContent=/\.(heif|heic)$/i.test(file.name)||/heif|heic/i.test(file.type)
+          ?"HEIF / HEIC 暂不支持，请在相册中转换为 JPG 或 PNG 后上传。"
+          :"请使用 JPG、PNG 或 WebP 格式。";
+        return;
+      }
       if(file.size>15*1024*1024){settingsNotice.textContent="图片超过 15 MB，请选择较小的图片。";return;}
       try {
         originalBackground = file;
