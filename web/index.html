@@ -766,10 +766,10 @@
           <h3>背景图片</h3>
           <div class="settings-buttons">
             <label class="btn btn-secondary file-label" for="backgroundUpload">选择本地图片</label>
-            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/jpeg,image/png,image/webp" aria-label="上传背景图片">
+            <input class="hidden-file" id="backgroundUpload" type="file" accept="image/*" aria-label="上传背景图片">
             <button class="btn btn-secondary" type="button" onclick="removeBackground()">移除图片</button>
           </div>
-          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。可上传 JPG、PNG、WebP。</p></div>
+          <div class="image-preview"><div id="imageThumbnail" class="image-thumbnail"></div><p id="imageState">未使用背景图片。支持 JPG、PNG、WebP；部分手机还可使用 HEIC。</p></div>
           <div class="setting-row" style="margin-top:12px">
             <div class="setting-heading"><label for="wallpaperResolution">高清适配</label><span class="setting-value">原图始终保留</span></div>
             <select class="setting-select" id="wallpaperResolution" aria-label="背景图片高清适配模式">
@@ -1547,57 +1547,119 @@
         tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
       });} finally{db.close();}
     }
-    // Store untouched source in IndexedDB. Preview is generated in memory as needed.
+    // Mobile browsers can struggle with decoding a large image through
+    // createImageBitmap. Use an HTMLImageElement on narrow viewports, and
+    // bound mobile canvas dimensions to avoid exhausting browser memory.
+    function loadWallpaperImage(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        let settled = false;
+        const timeout = setTimeout(
+          () => finish(new Error("图片读取超时，请尝试较小的 JPG 或 PNG 图片。")),
+          20000
+        );
+        function finish(error) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          image.onload = null;
+          image.onerror = null;
+          if (error) {
+            URL.revokeObjectURL(url);
+            reject(error);
+          } else {
+            resolve({image, url});
+          }
+        }
+        image.onload = () => image.naturalWidth && image.naturalHeight
+          ? finish(null)
+          : finish(new Error("无法读取图片尺寸。"));
+        image.onerror = () => finish(new Error("浏览器无法读取这种图片编码，请将图片另存为 JPG 或 PNG 后重试。"));
+        image.src = url;
+      });
+    }
+
+    // Keep the original in IndexedDB. Only the displayed copy is resized.
     async function prepareBackground(blob) {
-      if (!blob) return;
+      if (!blob) return false;
       const serial = ++processingSerial;
       const info = document.getElementById("wallpaperResolutionNote");
       const mode = preferences.wallpaperResolution;
-      info.textContent = "正在分析图片分辨率…";
-      let bitmap;
+      const mobile = window.matchMedia("(max-width: 860px)").matches;
+      info.textContent = "正在读取背景图片…";
+      imageState.textContent = "正在加载图片，请稍候…";
+      let bitmap = null;
+      let loaded = null;
       try {
-        bitmap = await createImageBitmap(blob);
-        const w = bitmap.width, h = bitmap.height;
-        let result = blob, outW = w, outH = h;
+        if (mobile) loaded = await loadWallpaperImage(blob);
+        else bitmap = await createImageBitmap(blob);
+        if (serial !== processingSerial) return false;
+
+        const source = mobile ? loaded.image : bitmap;
+        const w = mobile ? loaded.image.naturalWidth : bitmap.width;
+        const h = mobile ? loaded.image.naturalHeight : bitmap.height;
+        const mobileCap = Math.min(1, 2560 / Math.max(w, h), Math.sqrt(4000000 / (w * h)));
+        let scale = 1;
         if (mode !== "auto") {
           const maxW = mode === "4k" ? 3840 : 1920;
           const maxH = mode === "4k" ? 2160 : 1080;
           const limitW = w >= h ? maxW : maxH;
           const limitH = w >= h ? maxH : maxW;
-          const scale = Math.min(limitW / w, limitH / h);
+          scale = Math.min(limitW / w, limitH / h);
+        }
+        if (mobile) scale = Math.min(scale, mobileCap);
+        const needsFormatConversion = /image\/hei(c|f)/i.test(blob.type);
+        const convert = mode !== "auto" || (mobile && scale < 1) || needsFormatConversion;
+        let result = blob, outW = w, outH = h;
+        if (convert) {
           outW = Math.max(1, Math.round(w * scale));
           outH = Math.max(1, Math.round(h * scale));
           const canvas = document.createElement("canvas");
           canvas.width = outW;
           canvas.height = outH;
           const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("此浏览器无法处理图片");
+          if (!ctx) throw new Error("浏览器无法创建图片预览。");
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(bitmap, 0, 0, outW, outH);
+          ctx.drawImage(source, 0, 0, outW, outH);
           result = await new Promise((resolve, reject) => {
             canvas.toBlob(
-              value => value ? resolve(value) : reject(new Error("图片转换失败")),
-              "image/webp", 0.96
+              value => value ? resolve(value) : reject(new Error("图片转换失败。")),
+              "image/webp", 0.92
             );
           });
+          canvas.width = canvas.height = 0;
         }
-        if (serial !== processingSerial) return;
+        if (serial !== processingSerial) return false;
         displayBackground(result);
-        const sizeChanged = outW > w || outH > h;
         const output = `${outW} × ${outH}`;
-        const source = `${w} × ${h}`;
+        const mobileDetail = mobile && (scale < 1)
+          ? " · 为适应手机内存已缩小预览，原图仍保留"
+          : "";
         info.textContent = mode === "auto"
-          ? `原图 ${source} 像素 · 保留原始质量，自动铺满屏幕。`
-          : `原图 ${source} → 适配 ${output} 像素。${sizeChanged ? "放大像素不会产生新的真实细节。" : "已高质量缩放。"}`;
-        imageState.textContent = `背景已加载 · 当前显示 ${output} 像素`;
+          ? `原图 ${w} × ${h} 像素${mobileDetail} · 自动适配屏幕。`
+          : `原图 ${w} × ${h} → 显示 ${output} 像素${mobileDetail}。`;
+        imageState.textContent = `背景已加载 · 当前预览 ${output} 像素`;
+        return true;
       } catch (error) {
         if (serial === processingSerial) {
-          displayBackground(blob);
-          info.textContent = `无法完成高清处理，已使用原图。${error.message || ""}`;
+          // If the source decoded but resizing failed, display the source.
+          // If decoding failed, keep the previous background instead of
+          // saving an unrenderable image and claiming success.
+          if (loaded || bitmap) {
+            displayBackground(blob);
+            info.textContent = "图片调整失败，已尝试显示原图。";
+            imageState.textContent = "已使用原图，手机端如无法显示请改用较小的 JPG 或 PNG。";
+            return true;
+          }
+          info.textContent = "无法读取图片：请检查格式、大小和浏览器兼容性。";
+          imageState.textContent = (error && error.message) || "图片加载失败，请更换图片。";
         }
+        return false;
       } finally {
-        if (bitmap) bitmap.close();
+        if (bitmap && typeof bitmap.close === "function") bitmap.close();
+        if (loaded) URL.revokeObjectURL(loaded.url);
       }
     }
     document.getElementById("wallpaperResolution").addEventListener("change", () => {
@@ -1627,15 +1689,36 @@
       catch {settingsNotice.textContent="背景已在当前页面移除，但浏览器存储可能未清除。";}
     }
     document.getElementById("backgroundUpload").addEventListener("change",async event=>{
-      const file=event.target.files[0];if(!file)return;
-      if(!["image/jpeg","image/png","image/webp"].includes(file.type)){settingsNotice.textContent="请使用 JPG、PNG 或 WebP 格式。";return;}
-      if(file.size>15*1024*1024){settingsNotice.textContent="图片超过 15 MB，请选择较小的图片。";return;}
+      const file=event.target.files[0];
+      if(!file)return;
+      const type=(file.type||"").toLowerCase();
+      const extension=(file.name.split(".").pop()||"").toLowerCase();
+      const supportedTypes=["image/jpeg","image/png","image/webp","image/heic","image/heif"];
+      const supportedExtensions=["jpg","jpeg","png","webp","heic","heif"];
+      if(!supportedTypes.includes(type) && !(type==="" && supportedExtensions.includes(extension))){
+        settingsNotice.textContent="无法使用此图片格式。请选择 JPG、PNG、WebP；HEIC 需手机浏览器支持。";
+        imageState.textContent="该图片格式暂不支持，当前背景未更改。";
+        return;
+      }
+      if(file.size>15*1024*1024){
+        settingsNotice.textContent="图片超过 15 MB。请缩小尺寸或转换为较小的 JPG 再上传。";
+        imageState.textContent="图片超出 15 MB 限制，当前背景未更改。";
+        return;
+      }
+      settingsNotice.textContent="正在读取「"+file.name+"」…";
       try {
-        originalBackground = file;
-        await prepareBackground(file);
-        try {await storeBackground(file);settingsNotice.textContent="背景已保存，可在当前浏览器中恢复。";}
-        catch {settingsNotice.textContent="背景已显示，但保存失败，刷新后可能丢失。";}
-      } catch {settingsNotice.textContent="无法打开这张图片，请更换文件。";}
+        const loaded = await prepareBackground(file);
+        if(!loaded){
+          settingsNotice.textContent="图片未能显示，请尝试 JPG、PNG 或更小的图片。";
+          return;
+        }
+        originalBackground=file;
+        try{await storeBackground(file);settingsNotice.textContent="背景已加载，并保存到当前浏览器。";}
+        catch{settingsNotice.textContent="背景已加载，但保存失败，刷新后可能丢失。";}
+      }catch(error){
+        settingsNotice.textContent="读取图片时发生错误，请尝试另存为 JPG 或 PNG。";
+        imageState.textContent="图片读取失败，当前背景未更改。";
+      }
     });
     async function restoreDefaults(){preferences={...defaultSettings};applyPreferences();savePreferences();await removeBackground();settingsNotice.textContent="已恢复默认外观。";}
     readBackground().then(async blob=>{
